@@ -21,12 +21,14 @@ sdg-hackathon/
 
 ## 1. Set up the database (Supabase)
 
+> **Already set up with the earlier version?** Don't run `schema.sql` again. Run `supabase/migration_002_sdg_strength.sql` once in the SQL Editor instead. It adds SDG contribution-strength ratings and keeps all existing teams, marks and settings.
+
 1. Sign up at supabase.com and click **New project**. Pick a region close to you (for example Mumbai), set a database password, and wait for it to finish.
 2. Open **SQL Editor ▸ New query**, paste in the whole of `supabase/schema.sql`, and click **Run**. You should see "Success". This creates:
    - the tables (rounds, teams, rubric, mapping, scores, settings),
    - the security rules,
    - the calculation views,
-   - the rubric (9 criteria, 100 marks), the PO/PSO/SDG mapping, the 17 SDGs, and the six rounds (3A, 3B, 3rd-sem inter-section, 5A, 5B, 5th-sem inter-section).
+   - the rubric (9 criteria, 100 marks), the rubric → PO/PSO mapping, the 17 SDGs, the SDG contribution-strength ratings, and the six rounds (3A, 3B, 3rd-sem inter-section, 5A, 5B, 5th-sem inter-section).
 3. Optional but recommended: **Authentication ▸ Sign In / Providers ▸ Email**, turn off **Confirm email**, so evaluators can sign in immediately after creating an account. If you leave it on, they must click the link in their confirmation email first.
 4. Open **Project Settings ▸ API** (or **API Keys**) and copy two values:
    - **Project URL**, e.g. `https://abcdxyz.supabase.co`
@@ -72,7 +74,7 @@ npm run dev                     # opens on http://localhost:5173
    - Enter the date and venue.
    - Tick the evaluators judging that round.
    - Add teams one at a time, or open **Add many teams at once** and paste rows from Excel in this order: Team ID, Team name, Members, Primary SDG number, Secondary SDG number, Problem statement.
-5. On the day, evaluators sign in, pick their round and team, and score. Marks save to the database as soon as they press **Save scores**, and they can revise them until you close scoring.
+5. On the day, evaluators sign in, pick their round and team, mark the 9 rubric criteria, and then rate how strongly the solution advances each SDG the team claims (0 None, 1 Low, 2 Medium, 3 High). Everything saves when they press **Save scores**, and they can revise it until you close scoring. A team shows as done once all criteria and all claimed SDGs are rated.
 6. When a section round is finished, click **Close scoring** on its page.
 7. When both sections of a semester are finished, open the inter-section round and click **Pull shortlisted teams**. It copies the top 5 of each section. Assign evaluators to this round as well.
 8. **Dashboard** shows results live. Choose **All rounds together** or a single round. **Download Excel report** produces a workbook for accreditation files.
@@ -86,9 +88,11 @@ The formulas are the same as the Excel workbook.
 | Criterion score | Average of the evaluators who marked it |
 | Total, % | Sum of criterion averages; ÷ total maximum marks |
 | Rank | By total. Ties are broken by the criterion marked "Use to break ties" (Technical Implementation by default), then by the order teams were added |
-| Team attainment for PO/PSO/SDG | Σ(criterion score ÷ max × correlation) ÷ Σ correlation, using the 3/2/1 mapping. Only calculated once every linked criterion has a mark |
+| Team attainment for PO/PSO | Σ(criterion score ÷ max × correlation) ÷ Σ correlation, using the 3/2/1 mapping. Only calculated once every linked criterion has a mark |
 | Round attainment level | % of teams whose attainment ≥ target: Level 3 if ≥ 70%, 2 if ≥ 60%, 1 if ≥ 50%, else 0 (all editable) |
-| SDG goal-wise | For each of the 17 goals, the SDG-integration scores of all teams that chose it (primary or secondary), with the same level rule |
+| SDG contribution strength | Each evaluator rates every SDG a team claims (primary and, if any, secondary): 3 High, 2 Medium, 1 Low, 0 None. A solution's strength is the average across evaluators. These ratings are not part of the 100 marks and do not affect rank |
+| SDG attainment (round) | Average strength over every rated team–SDG pair in the round, plus the % of pairs at or above the target strength (default 2, Medium; editable) |
+| SDG goal-wise | For each of the 17 goals, the average strength of all solutions addressing it, with the same % at target |
 | All rounds together | Teams from every round are pooled, not averaged round by round. Finalists therefore count in both their section round and the inter-section round |
 
 ## 5. Who can do what

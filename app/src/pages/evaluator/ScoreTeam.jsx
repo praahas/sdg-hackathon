@@ -6,6 +6,7 @@ import { loadReference } from '../../lib/reference'
 import { bandOf, bandsFor, rangeText } from '../../lib/bands'
 import { num } from '../../lib/format'
 import { ErrorBox, Loading, Notice, SdgChip } from '../../components/ui'
+import { STRENGTHS, claimedSdgs } from '../../lib/sdgStrength'
 
 function isInvalid(value, max) {
   if (value === '' || value === undefined) return false
@@ -60,17 +61,46 @@ function CriterionScorer({ c, value = '', onChange, disabled }) {
   )
 }
 
+
+function SdgRater({ sdg, isPrimary, value, onChange, disabled }) {
+  const current = STRENGTHS.find((x) => String(x.value) === String(value))
+  return (
+    <section className={`crit sdg-rate ${current ? `crit-l${current.value}` : ''}`} style={{ '--sdg': sdg?.color }}>
+      <header className="crit-head">
+        <h3>How strongly does this solution advance SDG {sdg?.id}: {sdg?.name}?
+          <span className="tag">{isPrimary ? 'Primary SDG' : 'Secondary SDG'}</span></h3>
+      </header>
+      <div className="bandbar strength-bar" role="radiogroup" aria-label={`Contribution strength for SDG ${sdg?.id}`}>
+        {STRENGTHS.map((x) => (
+          <button key={x.value} type="button" role="radio" aria-checked={current?.value === x.value} disabled={disabled}
+            className={`band band-${x.value} ${current?.value === x.value ? 'on' : ''}`}
+            onClick={() => onChange(String(x.value))}>
+            <span>{x.label}</span><small>{x.value}</small>
+          </button>
+        ))}
+      </div>
+      <p className="descriptor">
+        {current
+          ? <><b>{current.label} ({current.value}):</b> {current.desc}</>
+          : <span className="muted">Rate the solution's contribution to this goal, not the overall quality of the project.</span>}
+      </p>
+      {current && !disabled && <button type="button" className="btn-link small" onClick={() => onChange('')}>Clear rating</button>}
+    </section>
+  )
+}
+
 export default function ScoreTeam({ profile }) {
   const { eventId, teamId } = useParams()
   const navigate = useNavigate()
   const { data, error, loading, reload } = useLoad(async () => {
-    const [ref, event, teams, mine] = await Promise.all([
+    const [ref, event, teams, mine, mineSdg] = await Promise.all([
       loadReference(),
       q(supabase.from('events').select('*').eq('id', eventId).single()),
       q(supabase.from('teams').select('*').eq('event_id', eventId).order('team_code').order('id')),
       q(supabase.from('scores').select('*').eq('team_id', teamId).eq('evaluator_id', profile.id)),
+      q(supabase.from('sdg_ratings').select('*').eq('team_id', teamId).eq('evaluator_id', profile.id)),
     ])
-    return { ref, event, teams, mine }
+    return { ref, event, teams, mine, mineSdg }
   }, [eventId, teamId, profile.id])
 
   const [values, setValues] = useState({})
@@ -82,6 +112,7 @@ export default function ScoreTeam({ profile }) {
     if (!data) return
     const v = {}
     data.mine.forEach((s) => { v[s.criterion_id] = String(Number(s.score)) })
+    data.mineSdg.forEach((r) => { v[`sdg${r.sdg_id}`] = String(r.strength) })
     setValues(v); setSaved(v); setMsg(null)
   }, [data])
 
@@ -97,7 +128,11 @@ export default function ScoreTeam({ profile }) {
   const filled = ref.criteria.filter((c) => (values[c.id] ?? '') !== '')
   const anyInvalid = ref.criteria.some((c) => isInvalid(values[c.id], c.max_marks))
   const total = filled.reduce((a, c) => a + (isInvalid(values[c.id], c.max_marks) ? 0 : Number(values[c.id])), 0)
-  const dirty = ref.criteria.some((c) => (values[c.id] ?? '') !== (saved[c.id] ?? ''))
+  const claimed = claimedSdgs(team)
+  const sdgKey = (id) => `sdg${id}`
+  const ratedSdgs = claimed.filter((id) => (values[sdgKey(id)] ?? '') !== '')
+  const dirty = [...ref.criteria.map((c) => c.id), ...claimed.map(sdgKey)].some((k) => (values[k] ?? '') !== (saved[k] ?? ''))
+  const remaining = (ref.criteria.length - filled.length) + (claimed.length - ratedSdgs.length)
 
   const go = (t) => {
     if (dirty && !window.confirm('You have unsaved marks for this team. Leave without saving?')) return
@@ -111,8 +146,12 @@ export default function ScoreTeam({ profile }) {
       const cleared = ref.criteria.filter((c) => (values[c.id] ?? '') === '' && (saved[c.id] ?? '') !== '').map((c) => c.id)
       if (rows.length) await q(supabase.from('scores').upsert(rows, { onConflict: 'team_id,criterion_id,evaluator_id' }))
       if (cleared.length) await q(supabase.from('scores').delete().eq('team_id', team.id).eq('evaluator_id', profile.id).in('criterion_id', cleared))
+      const sdgRows = ratedSdgs.map((id) => ({ team_id: team.id, sdg_id: id, evaluator_id: profile.id, strength: Number(values[sdgKey(id)]) }))
+      const sdgCleared = claimed.filter((id) => (values[sdgKey(id)] ?? '') === '' && (saved[sdgKey(id)] ?? '') !== '')
+      if (sdgRows.length) await q(supabase.from('sdg_ratings').upsert(sdgRows, { onConflict: 'team_id,sdg_id,evaluator_id' }))
+      if (sdgCleared.length) await q(supabase.from('sdg_ratings').delete().eq('team_id', team.id).eq('evaluator_id', profile.id).in('sdg_id', sdgCleared))
       setSaved({ ...values })
-      setMsg({ kind: 'ok', text: filled.length === ref.criteria.length ? 'Scores saved.' : `Scores saved. ${ref.criteria.length - filled.length} criteria still need a mark.` })
+      setMsg({ kind: 'ok', text: remaining === 0 ? 'Scores saved.' : `Scores saved. ${remaining} item${remaining === 1 ? '' : 's'} still to rate.` })
     } catch (e) {
       setMsg({ kind: 'error', text: `Scores not saved: ${e.message}` })
     } finally { setBusy(false) }
@@ -142,10 +181,19 @@ export default function ScoreTeam({ profile }) {
           onChange={(v) => setValues((s) => ({ ...s, [c.id]: v }))} />
       ))}
 
+      <h2 className="section-title">SDG contribution</h2>
+      {claimed.length === 0
+        ? <Notice kind="warn">This team hasn't chosen an SDG yet, so there is nothing to rate here. Ask the admin to set the team's SDG.</Notice>
+        : claimed.map((id, i) => (
+          <SdgRater key={id} sdg={ref.sdgById[id]} isPrimary={i === 0 && id === team.primary_sdg}
+            value={values[sdgKey(id)] ?? ''} disabled={locked || busy}
+            onChange={(v) => setValues((s) => ({ ...s, [sdgKey(id)]: v }))} />
+        ))}
+
       <div className="savebar">
         <div className="savebar-total">
           <b>{num(total)}</b><span>/ {num(ref.maxTotal)}</span>
-          <small>{filled.length} of {ref.criteria.length} criteria marked{dirty ? ', unsaved changes' : ''}</small>
+          <small>{filled.length} of {ref.criteria.length} criteria marked, {ratedSdgs.length} of {claimed.length} SDGs rated{dirty ? ', unsaved changes' : ''}</small>
         </div>
         {msg && <span className={`savebar-msg ${msg.kind}`} role="status">{msg.text}</span>}
         <div className="savebar-actions">

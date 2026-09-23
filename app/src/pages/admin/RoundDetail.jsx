@@ -5,6 +5,7 @@ import { useLoad } from '../../lib/useLoad'
 import { loadReference } from '../../lib/reference'
 import { num, pct } from '../../lib/format'
 import { ErrorBox, Loading, SdgSelect } from '../../components/ui'
+import { claimedSdgs } from '../../lib/sdgStrength'
 
 const blankTeam = { team_code: '', name: '', members: '', primary_sdg: null, secondary_sdg: null, problem: '' }
 
@@ -72,7 +73,13 @@ export default function RoundDetail() {
       q(supabase.from('v_team_result').select('*').eq('event_id', eventId)),
     ])
     const ids = teams.map((t) => t.id)
-    const scores = ids.length ? await q(supabase.from('scores').select('team_id, evaluator_id').in('team_id', ids)) : []
+    const [scoreRows, ratingRows] = ids.length
+      ? await Promise.all([
+          q(supabase.from('scores').select('team_id, evaluator_id').in('team_id', ids)),
+          q(supabase.from('sdg_ratings').select('team_id, evaluator_id').in('team_id', ids)),
+        ])
+      : [[], []]
+    const scores = [...scoreRows, ...ratingRows]
     const originIds = teams.map((t) => t.origin_team_id).filter(Boolean)
     const origins = originIds.length ? await q(supabase.from('teams').select('id, event_id').in('id', originIds)) : []
     return { ref, event, allEvents, teams, profiles, ee, results, scores, origins }
@@ -152,7 +159,7 @@ export default function RoundDetail() {
       {event.kind === 'inter' && (
         <section className="panel">
           <h2>Finalists</h2>
-          <p>Pull the current top {ref.settings.shortlist_count} of each section round into this round. Do this once both section rounds are fully scored; it can't be repeated after finalists have been marked.</p>
+          <p>Pull the current top {ref.settings.shortlist_count} of each section round into this round. Do this once both section rounds are fully scored; it can't be repeated once finalists have marks or SDG ratings.</p>
           <button className="btn btn-primary" onClick={pull}>Pull shortlisted teams</button>
         </section>
       )}
@@ -189,7 +196,8 @@ export default function RoundDetail() {
                       <td><b>{t.team_code}</b> {t.name}</td>
                       {evaluators.map((p) => {
                         const n = scores.filter((s) => s.team_id === t.id && s.evaluator_id === p.id).length
-                        return <td key={p.id} className={`c prog ${n === 0 ? 'p0' : n >= nCrit ? 'p2' : 'p1'}`}>{n === 0 ? '—' : n >= nCrit ? 'Done' : `${n}/${nCrit}`}</td>
+                        const need = nCrit + claimedSdgs(t).length
+                        return <td key={p.id} className={`c prog ${n === 0 ? 'p0' : n >= need ? 'p2' : 'p1'}`}>{n === 0 ? '—' : n >= need ? 'Done' : `${n}/${need}`}</td>
                       })}
                       <td className="r">{r?.total != null ? num(r.total) : '—'}</td>
                       <td className="r">{pct(r?.pct)}</td>

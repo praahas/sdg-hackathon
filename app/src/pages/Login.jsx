@@ -5,7 +5,12 @@ export default function Login() {
   const [mode, setMode] = useState('signin')
   const [form, setForm] = useState({ name: '', email: '', password: '' })
   const [busy, setBusy] = useState(false)
-  const [msg, setMsg] = useState(null)
+  const [msg, setMsg] = useState(() => {
+    const h = new URLSearchParams(window.location.hash.replace(/^#\/?/, ''))
+    return h.get('error_description')
+      ? { kind: 'error', text: `${h.get('error_description')}. Sign in with your email and password instead.` }
+      : null
+  })
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value })
 
   async function submit(e) {
@@ -14,7 +19,7 @@ export default function Login() {
     const { email, password, name } = form
     const res = mode === 'signin'
       ? await supabase.auth.signInWithPassword({ email, password })
-      : await supabase.auth.signUp({ email, password, options: { data: { full_name: name } } })
+      : await supabase.auth.signUp({ email, password, options: { data: { full_name: name }, emailRedirectTo: window.location.href.split('#')[0] } })
     setBusy(false)
     if (res.error) return setMsg({ kind: 'error', text: res.error.message })
     if (mode === 'signup' && !res.data.session) {

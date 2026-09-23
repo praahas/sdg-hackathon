@@ -308,3 +308,13 @@ figcaption { font-size: .86rem; font-weight: 650; color: var(--ink-2); margin-bo
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 .nowrap { white-space: nowrap; }
+.section-title { margin: 26px 0 10px; }
+.strength-bar .band { flex-grow: 1; }
+.sdg-rate { border-top: 3px solid var(--sdg, var(--line)); }
+.sdg-with-strength { display: inline-flex; align-items: center; gap: 2px; margin-right: 6px; }
+.sdg-with-strength small { font-weight: 700; }
+.sdg-summary { display: flex; gap: 28px; flex-wrap: wrap; margin: 6px 0 18px; }
+.big-stat { display: flex; align-items: baseline; gap: 4px; flex-wrap: wrap; max-width: 230px; }
+.big-stat b { font-size: 2rem; font-weight: 800; }
+.big-stat span { font-weight: 600; color: var(--muted); }
+.big-stat small { flex-basis: 100%; color: var(--muted); }

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { supabase, q } from '../../lib/supabase'
 import { useLoad } from '../../lib/useLoad'
 import { ErrorBox, Loading } from '../../components/ui'
+import { claimedSdgs } from '../../lib/sdgStrength'
 
 export default function MyRounds({ profile }) {
   const { data, error, loading, reload } = useLoad(async () => {
@@ -10,16 +11,17 @@ export default function MyRounds({ profile }) {
     const events = rows.map((r) => r.events).filter(Boolean).sort((a, b) => a.sort - b.sort)
     if (!events.length) return { events: [] }
     const ids = events.map((e) => e.id)
-    const [teams, scores, criteria] = await Promise.all([
-      q(supabase.from('teams').select('id, event_id').in('event_id', ids)),
+    const [teams, scores, ratings, criteria] = await Promise.all([
+      q(supabase.from('teams').select('id, event_id, primary_sdg, secondary_sdg').in('event_id', ids)),
       q(supabase.from('scores').select('team_id').eq('evaluator_id', profile.id)),
+      q(supabase.from('sdg_ratings').select('team_id').eq('evaluator_id', profile.id)),
       q(supabase.from('criteria').select('id')),
     ])
     const perTeam = {}
-    scores.forEach((s) => { perTeam[s.team_id] = (perTeam[s.team_id] || 0) + 1 })
+    ;[...scores, ...ratings].forEach((s) => { perTeam[s.team_id] = (perTeam[s.team_id] || 0) + 1 })
     const stats = Object.fromEntries(ids.map((id) => {
       const ts = teams.filter((t) => t.event_id === id)
-      return [id, { teams: ts.length, done: ts.filter((t) => perTeam[t.id] >= criteria.length).length }]
+      return [id, { teams: ts.length, done: ts.filter((t) => (perTeam[t.id] || 0) >= criteria.length + claimedSdgs(t).length).length }]
     }))
     return { events, stats }
   }, [profile.id])

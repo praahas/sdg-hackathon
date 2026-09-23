@@ -4,6 +4,7 @@ import { useLoad } from '../../lib/useLoad'
 import { loadReference } from '../../lib/reference'
 import { bandsFor, rangeText } from '../../lib/bands'
 import { ErrorBox, Loading } from '../../components/ui'
+import { STRENGTHS } from '../../lib/sdgStrength'
 
 const PCT_FIELDS = ['target', 'level3', 'level2', 'level1']
 
@@ -17,7 +18,7 @@ function SettingsForm({ settings, onSaved }) {
     e.preventDefault(); setMsg(null)
     const body = {
       title: f.title, institution: f.institution, department: f.department, academic_year: f.academic_year,
-      shortlist_count: Number(f.shortlist_count), updated_at: new Date().toISOString(),
+      shortlist_count: Number(f.shortlist_count), sdg_strength_target: Number(f.sdg_strength_target), updated_at: new Date().toISOString(),
       ...Object.fromEntries(PCT_FIELDS.map((k) => [k, Number(f[k]) / 100])),
     }
     if (!(body.level3 >= body.level2 && body.level2 >= body.level1)) return setMsg({ kind: 'error', text: 'Level thresholds must go from highest (Level 3) to lowest (Level 1).' })
@@ -35,6 +36,19 @@ function SettingsForm({ settings, onSaved }) {
         <label>Level 1 when at least<input type="number" min="1" max="100" required value={f.level1} onChange={set('level1')} /></label>
         <label>Teams shortlisted per round<input type="number" min="1" max="20" required value={f.shortlist_count} onChange={set('shortlist_count')} /></label>
       </div>
+      <h3>SDG contribution</h3>
+      <p>Evaluators rate each SDG a team claims from 0 to 3. SDG attainment is the average strength; this setting decides which strength counts as the goal being reached.</p>
+      <div className="form-grid">
+        <label>Counts as reached at strength
+          <select value={f.sdg_strength_target ?? 2} onChange={set('sdg_strength_target')}>
+            {STRENGTHS.filter((x) => x.value > 0).map((x) => <option key={x.value} value={x.value}>{x.value}: {x.label} or stronger</option>)}
+          </select>
+        </label>
+      </div>
+      <details className="outcome-defs">
+        <summary>SDG contribution scale shown to evaluators</summary>
+        <dl>{[...STRENGTHS].reverse().map((x) => <div key={x.value}><dt>{x.value} {x.label}</dt><dd>{x.desc}</dd></div>)}</dl>
+      </details>
       <h3>Hackathon details</h3>
       <div className="form-grid">
         <label>Title<input value={f.title} onChange={set('title')} /></label>
@@ -122,8 +136,8 @@ function MappingEditor({ criteria, outcomes, mapping, onSaved }) {
   }
   return (
     <section className="panel">
-      <h2>Rubric to PO, PSO and SDG mapping</h2>
-      <p>3 is a strong link, 2 medium, 1 weak, blank none. A team's attainment for an outcome is the weighted average of its criterion percentages.</p>
+      <h2>Rubric to PO and PSO mapping</h2>
+      <p>3 is a strong link, 2 medium, 1 weak, blank none. A team's attainment for an outcome is the weighted average of its criterion percentages. SDG attainment is rated separately by evaluators, so it has no column here.</p>
       <div className="scroll">
         <table className="table matrix">
           <thead><tr><th>Criterion</th>{outcomes.map((o) => <th key={o.code} className={`c k-${o.kind}`} title={o.name}>{o.code}</th>)}</tr></thead>
