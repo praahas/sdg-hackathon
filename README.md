@@ -77,7 +77,9 @@ npm run dev                     # opens on http://localhost:5173
 5. On the day, evaluators sign in, pick their round and team, mark the 9 rubric criteria, and then rate how strongly the solution advances each SDG the team claims (0 None, 1 Low, 2 Medium, 3 High). Everything saves when they press **Save scores**, and they can revise it until you close scoring. A team shows as done once all criteria and all claimed SDGs are rated.
 6. When a section round is finished, click **Close scoring** on its page.
 7. When both sections of a semester are finished, open the inter-section round and click **Pull shortlisted teams**. It copies the top 5 of each section. Assign evaluators to this round as well.
-8. **Dashboard** shows results live. Choose **All rounds together** or a single round. **Download Excel report** produces a workbook for accreditation files.
+8. **Dashboard** shows results live. Choose **All rounds together** or a single round. There are two downloads:
+   - **Download formatted workbook**: the department's full evaluation workbook, filled with every team, evaluator, rubric mark and SDG rating from the app. It keeps all the sheets, formatting, formulas, attainment tables and charts, so it's the version to put in accreditation files. Excel, LibreOffice or Google Sheets calculate the results when the file opens.
+   - **Download data export**: plain tables of every result and raw mark, handy for your own analysis.
 
 ## 4. How the numbers are calculated
 
@@ -116,6 +118,16 @@ The app always keeps at least one admin.
 - **Pulling finalists** only works while the inter-section round has no marks yet. Pull again (it replaces the earlier pull) if a section's results change before the finals start.
 - **Password reset.** If an evaluator forgets their password, an admin can send a reset email from Supabase ▸ Authentication ▸ Users.
 - **Backups.** The Excel report is a full snapshot of teams, marks and attainment. Download one after each round.
+
+### Limits of the formatted workbook
+
+The workbook has fixed room, so the app tells you when something doesn't fit:
+- up to 20 teams per section round and 10 per inter-section round;
+- up to 3 evaluators per round (the 3 who gave marks, in name order);
+- exactly 9 rubric criteria and the 13 PO/PSO outcomes;
+- ties broken on criterion 4, as in the workbook.
+
+If you change the rubric's structure, use the data export, or regenerate the template with `tools/build_workbook.py` (`python build_workbook.py report-template.xlsx`) and copy it to `app/public/report-template.xlsx`.
 
 ## 7. Changing things later
 

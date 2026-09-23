@@ -318,3 +318,4 @@ figcaption { font-size: .86rem; font-weight: 650; color: var(--ink-2); margin-bo
 .big-stat b { font-size: 2rem; font-weight: 800; }
 .big-stat span { font-weight: 600; color: var(--muted); }
 .big-stat small { flex-basis: 100%; color: var(--muted); }
+.warn-list { margin: 6px 0 0; padding-left: 18px; }

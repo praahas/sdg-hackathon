@@ -39,6 +39,8 @@ export default function Dashboard() {
   const [sel, setSel] = useState('all')
   const [exporting, setExporting] = useState(false)
   const [exportErr, setExportErr] = useState(null)
+  const [reportNote, setReportNote] = useState(null)
+  const [building, setBuilding] = useState(false)
 
   const view = useMemo(() => {
     if (!data) return null
@@ -82,6 +84,15 @@ export default function Dashboard() {
     } catch (e) { setExportErr(e.message) } finally { setExporting(false) }
   }
 
+  async function doWorkbook() {
+    setBuilding(true); setExportErr(null); setReportNote(null)
+    try {
+      const { downloadWorkbookReport } = await import('../../lib/workbookReport')
+      const warnings = await downloadWorkbookReport()
+      setReportNote(warnings)
+    } catch (e) { setExportErr(e.message) } finally { setBuilding(false) }
+  }
+
   const chartData = outcomeRows.map((o) => ({ code: o.code, avg: o.avg_attainment == null ? null : Number(o.avg_attainment), at: o.pct_at_target == null ? null : Number(o.pct_at_target), level: o.level }))
 
   return (
@@ -99,10 +110,19 @@ export default function Dashboard() {
             </select>
           </label>
           <button className="btn" onClick={reload}>Refresh</button>
-          <button className="btn btn-primary" onClick={doExport} disabled={exporting}>{exporting ? 'Preparing…' : 'Download Excel report'}</button>
+          <button className="btn" onClick={doExport} disabled={exporting} title="Plain tables of every result and raw mark">{exporting ? 'Preparing…' : 'Download data export'}</button>
+          <button className="btn btn-primary" onClick={doWorkbook} disabled={building} title="The department's formatted evaluation workbook, filled in, with all sheets and charts">{building ? 'Building workbook…' : 'Download formatted workbook'}</button>
         </div>
       </div>
       {exportErr && <ErrorBox error={exportErr} />}
+      {reportNote && (
+        <div className={`alert ${reportNote.length ? 'alert-warn' : 'alert-ok'}`} role="status">
+          <div>
+            <b>Formatted workbook downloaded.</b> Open it in Excel (or LibreOffice / Google Sheets); totals, attainment and charts calculate when it opens.
+            {reportNote.length > 0 && <ul className="warn-list">{reportNote.map((w) => <li key={w}>{w}</li>)}</ul>}
+          </div>
+        </div>
+      )}
 
       {nTeams === 0 ? (
         <div className="empty">
