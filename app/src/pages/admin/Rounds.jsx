@@ -38,7 +38,9 @@ export default function Rounds() {
                   <td className="r">{teams.filter((t) => t.event_id === e.id).length}</td>
                   <td className="r">{results.filter((r) => r.event_id === e.id && r.n_criteria_scored > 0).length}</td>
                   <td className="r">{ee.filter((x) => x.event_id === e.id).length}</td>
-                  <td>{e.locked ? <span className="tag tag-lock">Closed</span> : <span className="tag tag-open">Open</span>}</td>
+                  <td className="nowrap">{e.locked ? <span className="tag tag-lock">Closed</span> : <span className="tag tag-open">Open</span>}
+                    {e.registration_open && <span className="tag">Registration open</span>}
+                    {e.leaderboard_published && <span className="tag">Leaderboard public</span>}</td>
                   <td className="r"><Link className="btn btn-small" to={`/admin/rounds/${e.id}`}>Manage</Link></td>
                 </tr>
               ))}

@@ -6,7 +6,9 @@ export default function Layout({ profile, children }) {
   const admin = profile.role === 'admin'
   const links = admin
     ? [['/admin', 'Dashboard', true], ['/admin/rounds', 'Rounds & teams'], ['/admin/setup', 'Rubric & targets'], ['/admin/people', 'People'], ['/score', 'My scoring']]
-    : [['/score', 'My rounds']]
+    : profile.role === 'team'
+      ? [['/team', 'My team', true], ['/team/leaderboard', 'Leaderboard']]
+      : [['/score', 'My rounds']]
   return (
     <div className="shell">
       <header className="topbar">

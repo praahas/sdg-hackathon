@@ -27,7 +27,7 @@ export default function People({ me }) {
     <>
       <div className="page-head">
         <h1>People</h1>
-        <p className="lede">Share <b>{link}</b> with your evaluators. They create an account with their email, appear in this list, and you assign them to rounds from each round's page.</p>
+        <p className="lede">Share <b>{link}</b> with evaluators and teams. Evaluators create an account and you assign them to rounds from each round's page; teams create a team account with one member's email and register themselves while a round's registration is open.</p>
       </div>
       {msg && <div className="alert alert-error">{msg}</div>}
       <section className="panel">
@@ -45,6 +45,7 @@ export default function People({ me }) {
                     <select value={p.role} onChange={(e) => setRole(p, e.target.value)} aria-label={`Role for ${p.email}`}>
                       <option value="evaluator">Evaluator</option>
                       <option value="admin">Admin</option>
+                      <option value="team">Team</option>
                     </select>
                   </td>
                 </tr>
@@ -52,7 +53,7 @@ export default function People({ me }) {
             })}
           </tbody>
         </table>
-        <p className="muted small">Admins can change targets, the rubric and teams, and see every evaluator's marks. Evaluators only see the rounds they're assigned to and only their own marks.</p>
+        <p className="muted small">Admins can change targets, the rubric and teams, and see every evaluator's marks. Evaluators only see the rounds they're assigned to and only their own marks. Team accounts see only their own registration and, once published, their round's leaderboard.</p>
       </section>
     </>
   )

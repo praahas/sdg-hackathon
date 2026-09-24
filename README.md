@@ -21,7 +21,9 @@ sdg-hackathon/
 
 ## 1. Set up the database (Supabase)
 
-> **Already set up with the earlier version?** Don't run `schema.sql` again. Run `supabase/migration_002_sdg_strength.sql` once in the SQL Editor instead. It adds SDG contribution-strength ratings and keeps all existing teams, marks and settings.
+> **Already set up with an earlier version?** Don't run `schema.sql` again. In the SQL Editor, run whichever of these you haven't run yet, in order. Each keeps all existing teams, marks and settings.
+> - `supabase/migration_002_sdg_strength.sql`: SDG contribution-strength ratings
+> - `supabase/migration_003_team_registration.sql`: team self-registration and team leaderboards
 
 1. Sign up at supabase.com and click **New project**. Pick a region close to you (for example Mumbai), set a database password, and wait for it to finish.
 2. Open **SQL Editor ▸ New query**, paste in the whole of `supabase/schema.sql`, and click **Run**. You should see "Success". This creates:
@@ -67,13 +69,22 @@ npm run dev                     # opens on http://localhost:5173
 
 ## 3. First use
 
-1. Open the site and choose **New evaluator? Create an account**. **The very first account becomes the admin automatically**, so create yours before sharing the link.
+1. Open the site, choose **New here?**, pick **An evaluator**, and create your account. **The first evaluator account becomes the admin automatically**, so create yours before sharing the link. (Team accounts never become admin.)
 2. **Rubric & targets**: check the target (default 60%), the level thresholds (70 / 60 / 50% of teams), the mapping, and the rubric descriptors.
 3. **People**: copy the site link shown there and send it to your evaluators. Each creates an account and appears in the list. You can make other faculty admins here too.
 4. **Rounds & teams ▸ Manage** for each section round:
    - Enter the date and venue.
    - Tick the evaluators judging that round.
    - Add teams one at a time, or open **Add many teams at once** and paste rows from Excel in this order: Team ID, Team name, Members, Primary SDG number, Secondary SDG number, Problem statement.
+4a. **Team self-registration (optional).** On a section round's page, click **Open registration**. Teams go to the site, choose **New here? ▸ Registering a team**, sign up with one member's email, and fill in:
+   - the round;
+   - the team name;
+   - every member's name and USN (team size limits are set on **Rubric & targets**);
+   - a contact phone;
+   - the primary SDG, an optional secondary SDG, and the SDG targets they address;
+   - the problem statement and proposed solution.
+
+   Each team gets a code such as `3A-08` and can edit its details until you close registration or evaluation of the team starts. Self-registered teams sit alongside the ones you add, marked "Self-registered" with their contact details.
 5. On the day, evaluators sign in, pick their round and team, mark the 9 rubric criteria, and then rate how strongly the solution advances each SDG the team claims (0 None, 1 Low, 2 Medium, 3 High). Everything saves when they press **Save scores**, and they can revise it until you close scoring. A team shows as done once all criteria and all claimed SDGs are rated.
 6. When a section round is finished, click **Close scoring** on its page.
 7. When both sections of a semester are finished, open the inter-section round and click **Pull shortlisted teams**. It copies the top 5 of each section. Assign evaluators to this round as well.
@@ -97,23 +108,34 @@ The formulas are the same as the Excel workbook.
 | SDG goal-wise | For each of the 17 goals, the average strength of all solutions addressing it, with the same % at target |
 | All rounds together | Teams from every round are pooled, not averaged round by round. Finalists therefore count in both their section round and the inter-section round |
 
+### Team leaderboards
+
+Each round has a **Publish leaderboard** switch on its page, off by default.
+
+When published, teams in that round see:
+- every team's rank, total, % and shortlist status;
+- their own average marks for each criterion;
+- their own SDG contribution strength.
+
+They never see individual evaluators' marks or other teams' member and contact details. Shortlisted teams also see the inter-section round's leaderboard once you publish it. The leaderboard updates live, so publish it when you're comfortable with teams seeing scores, or after evaluation ends.
+
 ## 5. Who can do what
 
 Supabase row-level security enforces this rule in the database itself, not just in the web pages.
 
-| | Evaluator | Admin |
+| | Team | Evaluator | Admin |
 |---|---|---|
-| See rounds and teams | Only rounds assigned to them | All |
-| Enter and edit marks | Only their own, only while the round is open | Anyone's, any time |
-| See other evaluators' marks and results | No | Yes |
-| Change targets, rubric, mapping, teams, roles | No | Yes |
+| See rounds and teams | Only its own registration | Only rounds assigned to them | All |
+| Enter and edit marks | No | Only their own, only while the round is open | Anyone's, any time |
+| See other evaluators' marks and results | Leaderboard totals only, once published | No | Yes |
+| Change targets, rubric, mapping, teams, roles | No | No | Yes |
 
 The app always keeps at least one admin.
 
 ## 6. Good to know
 
 - **Free-plan pauses.** A free Supabase project pauses after about a week with no activity. Before each round, open your project in Supabase and click **Restore** if it is paused. Nothing is lost.
-- **Open sign-up.** Anyone with the link can create an account, but they see nothing until you assign them to a round. Once your evaluators have signed up, you can turn off new sign-ups in Supabase (**Authentication ▸ Sign In / Providers ▸ Allow new users to sign up**).
+- **Open sign-up.** Anyone with the link can create an account. Evaluator accounts see nothing until you assign them to a round; team accounts can only register while a round's registration is open. Once your evaluators have signed up, you can turn off new sign-ups in Supabase (**Authentication ▸ Sign In / Providers ▸ Allow new users to sign up**).
 - **Change the rubric before scoring starts.** Changing a criterion's maximum marks after marks are in rescales every result, and deleting a criterion deletes its marks.
 - **Pulling finalists** only works while the inter-section round has no marks yet. Pull again (it replaces the earlier pull) if a section's results change before the finals start.
 - **Password reset.** If an evaluator forgets their password, an admin can send a reset email from Supabase ▸ Authentication ▸ Users.

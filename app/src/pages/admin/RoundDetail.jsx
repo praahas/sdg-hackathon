@@ -7,21 +7,21 @@ import { num, pct } from '../../lib/format'
 import { ErrorBox, Loading, SdgSelect } from '../../components/ui'
 import { claimedSdgs } from '../../lib/sdgStrength'
 
-const blankTeam = { team_code: '', name: '', members: '', primary_sdg: null, secondary_sdg: null, problem: '' }
+const blankTeam = { team_code: '', name: '', members: '', primary_sdg: null, secondary_sdg: null, sdg_targets: '', problem: '' }
 
 function TeamRow({ team, sdgs, onSaved, onDeleted, origin }) {
   const [t, setT] = useState(team)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState(null)
   useEffect(() => setT(team), [team])
-  const dirty = ['team_code', 'name', 'members', 'primary_sdg', 'secondary_sdg', 'problem'].some((k) => (t[k] ?? '') !== (team[k] ?? ''))
+  const dirty = ['team_code', 'name', 'members', 'primary_sdg', 'secondary_sdg', 'sdg_targets', 'problem'].some((k) => (t[k] ?? '') !== (team[k] ?? ''))
   const set = (k) => (v) => setT({ ...t, [k]: v })
   async function save() {
     setBusy(true); setErr(null)
     try {
       await q(supabase.from('teams').update({
         team_code: t.team_code, name: t.name, members: t.members,
-        primary_sdg: t.primary_sdg, secondary_sdg: t.secondary_sdg, problem: t.problem,
+        primary_sdg: t.primary_sdg, secondary_sdg: t.secondary_sdg, sdg_targets: t.sdg_targets, problem: t.problem,
       }).eq('id', team.id))
       onSaved()
     } catch (e) { setErr(e.message) } finally { setBusy(false) }
@@ -36,10 +36,12 @@ function TeamRow({ team, sdgs, onSaved, onDeleted, origin }) {
       <td>
         <input value={t.name ?? ''} onChange={(e) => set('name')(e.target.value)} aria-label="Team name" />
         {origin && <small className="muted">From {origin}</small>}
+        {team.owner_id && <small className="muted self-reg" title={team.contact_email}>Self-registered: {team.contact_email}{team.contact_phone ? `, ${team.contact_phone}` : ''}</small>}
       </td>
       <td><input value={t.members ?? ''} onChange={(e) => set('members')(e.target.value)} aria-label="Members" /></td>
       <td><SdgSelect sdgs={sdgs} value={t.primary_sdg} onChange={set('primary_sdg')} /></td>
       <td><SdgSelect sdgs={sdgs} value={t.secondary_sdg} onChange={set('secondary_sdg')} /></td>
+      <td><input value={t.sdg_targets ?? ''} onChange={(e) => set('sdg_targets')(e.target.value)} aria-label="SDG targets" className="w-code" /></td>
       <td><input value={t.problem ?? ''} onChange={(e) => set('problem')(e.target.value)} aria-label="Problem statement" /></td>
       <td className="actions">
         <button className="btn btn-small btn-primary" disabled={!dirty || busy || !t.name} onClick={save}>Save</button>
@@ -156,6 +158,40 @@ export default function RoundDetail() {
         </div>
       </section>
 
+      <section className="panel">
+        <h2>Team access</h2>
+        <div className="toggle-grid">
+          {event.kind === 'intra' && (
+            <div className="toggle-row">
+              <div>
+                <b>Team registration is {event.registration_open ? 'open' : 'closed'}.</b>
+                <p className="muted small">{event.registration_open
+                  ? 'Teams with a team account can register for this round and edit their details until you close it or evaluation of their team starts.'
+                  : 'Open it to let teams register themselves. You can still add teams below either way.'}</p>
+              </div>
+              <button className={`btn ${event.registration_open ? 'btn-danger' : 'btn-primary'}`}
+                onClick={() => act(() => q(supabase.from('events').update({ registration_open: !event.registration_open }).eq('id', event.id)),
+                  event.registration_open ? 'Registration closed.' : 'Registration opened.')}>
+                {event.registration_open ? 'Close registration' : 'Open registration'}
+              </button>
+            </div>
+          )}
+          <div className="toggle-row">
+            <div>
+              <b>The leaderboard is {event.leaderboard_published ? 'published' : 'hidden'}.</b>
+              <p className="muted small">{event.leaderboard_published
+                ? "Teams in this round can see every team's rank, total and status, plus their own criterion-wise marks. Updates live as marks change."
+                : "Teams can't see scores for this round yet. Publish when you're ready; you can hide it again at any time."}</p>
+            </div>
+            <button className={`btn ${event.leaderboard_published ? 'btn-danger' : 'btn-primary'}`}
+              onClick={() => act(() => q(supabase.from('events').update({ leaderboard_published: !event.leaderboard_published }).eq('id', event.id)),
+                event.leaderboard_published ? 'Leaderboard hidden from teams.' : 'Leaderboard published to teams.')}>
+              {event.leaderboard_published ? 'Hide leaderboard' : 'Publish leaderboard'}
+            </button>
+          </div>
+        </div>
+      </section>
+
       {event.kind === 'inter' && (
         <section className="panel">
           <h2>Finalists</h2>
@@ -168,7 +204,7 @@ export default function RoundDetail() {
         <h2>Evaluators</h2>
         {profiles.length === 0 ? <p className="muted">No accounts yet.</p> : (
           <div className="check-grid">
-            {profiles.map((p) => (
+            {profiles.filter((p) => p.role !== 'team').map((p) => (
               <label key={p.id} className="check">
                 <input type="checkbox" checked={assigned.has(p.id)} onChange={() => toggleEvaluator(p.id)} />
                 <span>{p.full_name || p.email}<small className="muted">{p.email}{p.role === 'admin' ? ', admin' : ''}</small></span>
@@ -216,7 +252,7 @@ export default function RoundDetail() {
         <h2>Teams ({teams.length})</h2>
         <div className="scroll">
           <table className="table table-edit">
-            <thead><tr><th>Team ID</th><th>Team name</th><th>Members</th><th>Primary SDG</th><th>Secondary SDG</th><th>Problem statement</th><th /></tr></thead>
+            <thead><tr><th>Team ID</th><th>Team name</th><th>Members</th><th>Primary SDG</th><th>Secondary SDG</th><th>SDG targets</th><th>Problem statement</th><th /></tr></thead>
             <tbody>
               {teams.map((t) => <TeamRow key={t.id} team={t} sdgs={ref.sdgs} origin={originName(t)} onSaved={reload} onDeleted={reload} />)}
               <tr className="row-new">
@@ -225,6 +261,7 @@ export default function RoundDetail() {
                 <td><input value={newTeam.members} onChange={(e) => setNewTeam({ ...newTeam, members: e.target.value })} placeholder="USNs / names" aria-label="New team members" /></td>
                 <td><SdgSelect sdgs={ref.sdgs} value={newTeam.primary_sdg} onChange={(v) => setNewTeam({ ...newTeam, primary_sdg: v })} /></td>
                 <td><SdgSelect sdgs={ref.sdgs} value={newTeam.secondary_sdg} onChange={(v) => setNewTeam({ ...newTeam, secondary_sdg: v })} /></td>
+                <td><input value={newTeam.sdg_targets} onChange={(e) => setNewTeam({ ...newTeam, sdg_targets: e.target.value })} placeholder="6.1" className="w-code" aria-label="New team SDG targets" /></td>
                 <td><input value={newTeam.problem} onChange={(e) => setNewTeam({ ...newTeam, problem: e.target.value })} placeholder="Problem statement" aria-label="New team problem statement" /></td>
                 <td><button className="btn btn-small btn-primary" disabled={!newTeam.name} onClick={addTeam}>Add team</button></td>
               </tr>

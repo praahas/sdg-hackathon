@@ -171,6 +171,7 @@ export default function ScoreTeam({ profile }) {
           <div className="team-sdgs">
             <SdgChip sdg={ref.sdgById[team.primary_sdg]} />
             {team.secondary_sdg && <SdgChip sdg={ref.sdgById[team.secondary_sdg]} />}
+            {team.sdg_targets && <small className="muted">Targets: {team.sdg_targets}</small>}
           </div>
         </div>
       </div>

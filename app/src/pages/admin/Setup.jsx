@@ -18,9 +18,11 @@ function SettingsForm({ settings, onSaved }) {
     e.preventDefault(); setMsg(null)
     const body = {
       title: f.title, institution: f.institution, department: f.department, academic_year: f.academic_year,
-      shortlist_count: Number(f.shortlist_count), sdg_strength_target: Number(f.sdg_strength_target), updated_at: new Date().toISOString(),
+      shortlist_count: Number(f.shortlist_count), sdg_strength_target: Number(f.sdg_strength_target),
+      team_min_members: Number(f.team_min_members), team_max_members: Number(f.team_max_members), updated_at: new Date().toISOString(),
       ...Object.fromEntries(PCT_FIELDS.map((k) => [k, Number(f[k]) / 100])),
     }
+    if (body.team_max_members < body.team_min_members) return setMsg({ kind: 'error', text: 'The maximum team size must be at least the minimum.' })
     if (!(body.level3 >= body.level2 && body.level2 >= body.level1)) return setMsg({ kind: 'error', text: 'Level thresholds must go from highest (Level 3) to lowest (Level 1).' })
     try { await q(supabase.from('settings').update(body).eq('id', 1)); setMsg({ kind: 'ok', text: 'Targets saved. Every result now uses them.' }); onSaved() }
     catch (err) { setMsg({ kind: 'error', text: err.message }) }
@@ -49,6 +51,11 @@ function SettingsForm({ settings, onSaved }) {
         <summary>SDG contribution scale shown to evaluators</summary>
         <dl>{[...STRENGTHS].reverse().map((x) => <div key={x.value}><dt>{x.value} {x.label}</dt><dd>{x.desc}</dd></div>)}</dl>
       </details>
+      <h3>Team registration</h3>
+      <div className="form-grid">
+        <label>Minimum members per team<input type="number" min="1" max="10" required value={f.team_min_members ?? 2} onChange={set('team_min_members')} /></label>
+        <label>Maximum members per team<input type="number" min="1" max="10" required value={f.team_max_members ?? 4} onChange={set('team_max_members')} /></label>
+      </div>
       <h3>Hackathon details</h3>
       <div className="form-grid">
         <label>Title<input value={f.title} onChange={set('title')} /></label>

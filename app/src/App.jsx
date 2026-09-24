@@ -12,6 +12,8 @@ import Rounds from './pages/admin/Rounds'
 import RoundDetail from './pages/admin/RoundDetail'
 import Setup from './pages/admin/Setup'
 import People from './pages/admin/People'
+import TeamHome from './pages/team/TeamHome'
+import Leaderboard from './pages/team/Leaderboard'
 
 function NotConfigured() {
   return (
@@ -45,6 +47,19 @@ export default function App() {
   if (!profile) return <Loading label="Loading your account…" />
 
   const admin = profile.role === 'admin'
+  if (profile.role === 'team') {
+    return (
+      <HashRouter>
+        <Layout profile={profile}>
+          <Routes>
+            <Route path="/team" element={<TeamHome profile={profile} />} />
+            <Route path="/team/leaderboard" element={<Leaderboard profile={profile} />} />
+            <Route path="*" element={<Navigate to="/team" replace />} />
+          </Routes>
+        </Layout>
+      </HashRouter>
+    )
+  }
   return (
     <HashRouter>
       <Layout profile={profile}>

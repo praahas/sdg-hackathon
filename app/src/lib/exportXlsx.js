@@ -38,6 +38,8 @@ export function exportWorkbook({ ref, events, evOut, overall, results, teamOut, 
   add('Team results', [...results].sort((a, b) => (events.find((e) => e.id === a.event_id)?.sort ?? 0) - (events.find((e) => e.id === b.event_id)?.sort ?? 0) || (a.rank ?? 999) - (b.rank ?? 999)).map((r) => {
     const t = teams.find((x) => x.id === r.team_id) || {}
     const row = { Round: evName(r.event_id), 'Team ID': r.team_code, Team: r.team_name, Members: t.members ?? '',
+      Registration: t.owner_id ? 'Self-registered' : 'Added by admin', 'Contact email': t.contact_email ?? '', 'Contact phone': t.contact_phone ?? '',
+      'SDG targets': t.sdg_targets ?? '',
       'Primary SDG': r.primary_sdg ?? '', 'Secondary SDG': r.secondary_sdg ?? '', 'Problem statement': t.problem ?? '' }
     ref.criteria.forEach((c) => { row[`${c.short_name} (/${Number(c.max_marks)})`] = r3(teamCrit.find((x) => x.team_id === r.team_id && x.criterion_id === c.id)?.avg_score) })
     Object.assign(row, { [`Total (/${ref.maxTotal})`]: r3(r.total), 'Score %': p1(r.pct), Rank: r.rank ?? '', Status: r.status ?? '' })
