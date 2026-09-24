@@ -23,7 +23,7 @@ export default function Layout({ profile, children }) {
         </nav>
         <div className="who">
           <span title={profile.email}>{profile.full_name || profile.email}</span>
-          <button className="btn btn-quiet" onClick={() => supabase.auth.signOut()}>Sign out</button>
+          <button className="btn btn-quiet" onClick={() => { sessionStorage.setItem('sdg-after-signout', profile.role === 'team' ? 'team' : 'evaluator'); supabase.auth.signOut() }}>Sign out</button>
         </div>
       </header>
       <main className="page">{children}</main>

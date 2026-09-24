@@ -366,3 +366,41 @@ figcaption { font-size: .86rem; font-weight: 650; color: var(--ink-2); margin-bo
   .leaderboard td, .leaderboard th { padding: 7px 5px; }
   .leaderboard .tag { margin-left: 4px; }
 }
+/* ---------- portals ---------- */
+.portal-team { --portal: #8A5A12; --portal-bg: #2B2113; }
+.portal-evaluator { --portal: var(--teal); --portal-bg: var(--ink); }
+.login.portal-team .login-side { background: var(--portal-bg); }
+.login.portal-team .btn-primary { background: var(--portal); border-color: var(--portal); }
+.login.portal-team .btn-primary:hover:not(:disabled) { background: #6F480D; border-color: #6F480D; }
+.login.portal-team .btn-link { color: var(--portal); }
+.login.portal-team input:focus { border-color: var(--portal); box-shadow: 0 0 0 3px rgba(138,90,18,.18); }
+.portal-kicker { text-transform: uppercase; letter-spacing: .08em; font-size: .78rem !important; font-weight: 700; margin: 0 0 4px !important; opacity: .75; }
+.portal-switch { color: #fff; opacity: .85; font-weight: 600; margin-top: 12px; display: inline-block; }
+.portal-switch:hover { opacity: 1; }
+.login.portal-team .brand-mark.big { box-shadow: inset 0 0 0 13px var(--portal-bg); }
+.landing { min-height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 20px; gap: 28px; }
+.landing-head { text-align: center; }
+.landing-head .brand-mark.big { margin: 0 auto 16px; box-shadow: inset 0 0 0 13px var(--paper); }
+.landing-head h1 { font-size: 2.2rem; }
+.landing-head p { color: var(--muted); margin: 0 auto; }
+.landing-alert { max-width: 760px; width: 100%; }
+.landing-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 360px)); gap: 20px; }
+.landing-card {
+  display: flex; flex-direction: column; gap: 8px; padding: 26px 24px; text-decoration: none; color: var(--ink);
+  background: #fff; border: 1px solid var(--line); border-top: 6px solid var(--portal); border-radius: var(--radius-m);
+  transition: transform .15s, box-shadow .15s;
+}
+.landing-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(22,50,63,.10); }
+.landing-card h2 { font-size: 1.4rem; margin: 0; }
+.landing-card p { color: var(--ink-2); margin: 0; flex: 1; }
+.landing-tag { font-size: .74rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--portal); }
+.landing-go { font-weight: 700; color: var(--portal); margin-top: 8px; }
+.landing-go::after { content: ' ›'; }
+.portal-links { display: flex; flex-direction: column; gap: 6px; }
+.portal-links div { display: flex; flex-direction: column; }
+.portal-links code { font-size: .9rem; padding: 4px 8px; user-select: all; word-break: break-all; }
+@media (max-width: 760px) {
+  .landing-cards { grid-template-columns: 1fr; width: 100%; max-width: 420px; }
+  .landing { justify-content: flex-start; padding-top: 36px; }
+}
+@media (prefers-reduced-motion: reduce) { .landing-card { transition: none; } }

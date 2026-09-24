@@ -21,13 +21,17 @@ export default function People({ me }) {
     try { await q(supabase.from('profiles').update({ role }).eq('id', p.id)); reload() }
     catch (e) { setMsg(e.message) }
   }
-  const link = window.location.href.split('#')[0]
+  const base = window.location.href.split('#')[0]
 
   return (
     <>
       <div className="page-head">
         <h1>People</h1>
-        <p className="lede">Share <b>{link}</b> with evaluators and teams. Evaluators create an account and you assign them to rounds from each round's page; teams create a team account with one member's email and register themselves while a round's registration is open.</p>
+        <p className="lede">Share the portal links. Evaluators create an account and you assign them to rounds from each round's page; teams sign up with one member's email and register while a round's registration is open.</p>
+        <div className="portal-links">
+          <div><span className="muted small">Team portal</span><code>{base}#/team</code></div>
+          <div><span className="muted small">Evaluator portal</span><code>{base}#/evaluator</code></div>
+        </div>
       </div>
       {msg && <div className="alert alert-error">{msg}</div>}
       <section className="panel">

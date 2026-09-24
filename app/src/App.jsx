@@ -3,7 +3,7 @@ import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { configured, supabase } from './lib/supabase'
 import Layout from './components/Layout'
 import { Loading } from './components/ui'
-import Login from './pages/Login'
+import Portal, { FLASH_KEY, PORTAL_KEY } from './pages/auth/Portal'
 import MyRounds from './pages/evaluator/MyRounds'
 import RoundTeams from './pages/evaluator/RoundTeams'
 import ScoreTeam from './pages/evaluator/ScoreTeam'
@@ -38,12 +38,27 @@ export default function App() {
   useEffect(() => {
     if (!session) { setProfile(null); return }
     supabase.from('profiles').select('*').eq('id', session.user.id).single()
-      .then(({ data }) => setProfile(data))
+      .then(async ({ data }) => {
+        // Reject an account signing in through the other portal.
+        const portal = sessionStorage.getItem(PORTAL_KEY)
+        sessionStorage.removeItem(PORTAL_KEY)
+        if (data && portal === 'team' && data.role !== 'team') {
+          sessionStorage.setItem(FLASH_KEY, 'That is an evaluator account. Sign in through the evaluator portal instead.')
+          window.location.hash = '#/evaluator'
+          await supabase.auth.signOut(); return
+        }
+        if (data && portal === 'evaluator' && data.role === 'team') {
+          sessionStorage.setItem(FLASH_KEY, 'That is a team account. Sign in through the team portal instead.')
+          window.location.hash = '#/team'
+          await supabase.auth.signOut(); return
+        }
+        setProfile(data)
+      })
   }, [session?.user?.id])
 
   if (!configured) return <NotConfigured />
   if (session === undefined) return <Loading />
-  if (!session) return <Login />
+  if (!session) return <HashRouter><Portal /></HashRouter>
   if (!profile) return <Loading label="Loading your account…" />
 
   const admin = profile.role === 'admin'

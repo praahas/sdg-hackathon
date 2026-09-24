@@ -69,14 +69,20 @@ npm run dev                     # opens on http://localhost:5173
 
 ## 3. First use
 
-1. Open the site, choose **New here?**, pick **An evaluator**, and create your account. **The first evaluator account becomes the admin automatically**, so create yours before sharing the link. (Team accounts never become admin.)
+1. Open the site and choose **Evaluator portal ▸ New evaluator? Create an account**. **The first evaluator account becomes the admin automatically**, so create yours before sharing any links. Team accounts never become admin.
+
+   The site has separate sign-in and registration pages for the two kinds of account:
+   - **Team portal:** `https://your-site/#/team`
+   - **Evaluator portal:** `https://your-site/#/evaluator`
+
+   The home page lets people pick either. Both links are also shown on the **People** page. Each portal only accepts its own kind of account; signing in through the wrong one points the person to the right portal.
 2. **Rubric & targets**: check the target (default 60%), the level thresholds (70 / 60 / 50% of teams), the mapping, and the rubric descriptors.
-3. **People**: copy the site link shown there and send it to your evaluators. Each creates an account and appears in the list. You can make other faculty admins here too.
+3. **People**: copy the evaluator portal link shown there and send it to your evaluators. Each creates an account and appears in the list. You can make other faculty admins here too.
 4. **Rounds & teams ▸ Manage** for each section round:
    - Enter the date and venue.
    - Tick the evaluators judging that round.
    - Add teams one at a time, or open **Add many teams at once** and paste rows from Excel in this order: Team ID, Team name, Members, Primary SDG number, Secondary SDG number, Problem statement.
-4a. **Team self-registration (optional).** On a section round's page, click **Open registration**. Teams go to the site, choose **New here? ▸ Registering a team**, sign up with one member's email, and fill in:
+4a. **Team self-registration (optional).** On a section round's page, click **Open registration**. Share the team portal link. Teams choose **New team? Create a team account**, sign up with one member's email, and fill in:
    - the round;
    - the team name;
    - every member's name and USN (team size limits are set on **Rubric & targets**);
