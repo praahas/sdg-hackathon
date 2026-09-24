@@ -16,6 +16,9 @@ export default function People({ me }) {
   if (loading && !data) return <Loading />
   if (error) return <ErrorBox error={error} onRetry={reload} />
 
+  const pending = data.profiles.filter((p) => p.role === 'pending')
+  const ROLE_LABEL = { admin: 'Admin', evaluator: 'Evaluator', team: 'Team', pending: 'Awaiting approval', rejected: 'Declined' }
+
   async function setRole(p, role) {
     setMsg(null)
     try { await q(supabase.from('profiles').update({ role }).eq('id', p.id)); reload() }
@@ -34,7 +37,33 @@ export default function People({ me }) {
         </div>
       </div>
       {msg && <div className="alert alert-error">{msg}</div>}
+      <section className={`panel ${pending.length ? 'panel-attn' : ''}`}>
+        <h2>Evaluator requests {pending.length > 0 && <span className="count-badge">{pending.length}</span>}</h2>
+        {pending.length === 0 ? (
+          <p className="muted">No evaluator accounts are waiting for approval.</p>
+        ) : (
+          <>
+            <p>Approve only people you know are faculty or jury. Anyone with the evaluator link can sign up, including students, so check the name and email before approving.</p>
+            <ul className="request-list">
+              {pending.map((p) => (
+                <li key={p.id}>
+                  <div>
+                    <b>{p.full_name || '(no name given)'}</b>
+                    <span className="muted"> {p.email}</span>
+                    <small className="muted">Signed up {new Date(p.created_at).toLocaleString()}</small>
+                  </div>
+                  <div className="row-gap">
+                    <button className="btn btn-primary btn-small" onClick={() => setRole(p, 'evaluator')}>Approve</button>
+                    <button className="btn btn-danger btn-small" onClick={() => setRole(p, 'rejected')}>Decline</button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </section>
       <section className="panel">
+        <h2>All accounts</h2>
         <table className="table">
           <thead><tr><th>Name</th><th>Email</th><th>Rounds</th><th>Role</th></tr></thead>
           <tbody>
@@ -47,9 +76,7 @@ export default function People({ me }) {
                   <td>{rounds.length ? rounds.join(', ') : <span className="muted">None</span>}</td>
                   <td>
                     <select value={p.role} onChange={(e) => setRole(p, e.target.value)} aria-label={`Role for ${p.email}`}>
-                      <option value="evaluator">Evaluator</option>
-                      <option value="admin">Admin</option>
-                      <option value="team">Team</option>
+                      {Object.entries(ROLE_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                     </select>
                   </td>
                 </tr>
@@ -57,7 +84,7 @@ export default function People({ me }) {
             })}
           </tbody>
         </table>
-        <p className="muted small">Admins can change targets, the rubric and teams, and see every evaluator's marks. Evaluators only see the rounds they're assigned to and only their own marks. Team accounts see only their own registration and, once published, their round's leaderboard.</p>
+        <p className="muted small">Admins can change targets, the rubric and teams, and see every evaluator's marks. Evaluators only see the rounds they're assigned to and only their own marks. Team accounts see only their own registration and, once published, their round's leaderboard. Accounts awaiting approval or declined can't see anything; declining or changing an evaluator's role also removes them from their rounds.</p>
       </section>
     </>
   )

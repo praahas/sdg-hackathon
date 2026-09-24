@@ -5,6 +5,7 @@ import Layout from './components/Layout'
 import { Loading } from './components/ui'
 import PoweredBy from './components/PoweredBy'
 import Portal, { FLASH_KEY, PORTAL_KEY } from './pages/auth/Portal'
+import PendingApproval from './pages/auth/PendingApproval'
 import MyRounds from './pages/evaluator/MyRounds'
 import RoundTeams from './pages/evaluator/RoundTeams'
 import ScoreTeam from './pages/evaluator/ScoreTeam'
@@ -64,6 +65,14 @@ export default function App() {
   if (!profile) return <Loading label="Loading your account…" />
 
   const admin = profile.role === 'admin'
+  if (profile.role === 'pending' || profile.role === 'rejected') {
+    return (
+      <PendingApproval profile={profile} onRecheck={async () => {
+        const { data } = await supabase.from('profiles').select('*').eq('id', session.user.id).single()
+        if (data) setProfile(data)
+      }} />
+    )
+  }
   if (profile.role === 'team') {
     return (
       <HashRouter>

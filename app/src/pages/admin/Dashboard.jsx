@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   Bar, BarChart, CartesianGrid, Cell, Legend, PolarAngleAxis, PolarGrid, PolarRadiusAxis,
   Radar, RadarChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
@@ -17,7 +18,7 @@ const pctTick = (v) => `${Math.round(v * 100)}%`
 const tipPct = (v) => (typeof v === 'number' ? pct(v) : v)
 
 async function fetchAll() {
-  const [ref, events, evOut, overall, results, teamOut, teamCrit, sdgEvent, sdgOverall, evSdg, allSdg, teamSdg] = await Promise.all([
+  const [ref, events, evOut, overall, results, teamOut, teamCrit, sdgEvent, sdgOverall, evSdg, allSdg, teamSdg, pendingEvals] = await Promise.all([
     loadReference(),
     q(supabase.from('events').select('*').order('sort')),
     q(supabase.from('v_event_outcome').select('*')),
@@ -30,8 +31,9 @@ async function fetchAll() {
     q(supabase.from('v_event_sdg').select('*')),
     q(supabase.from('v_overall_sdg').select('*')),
     q(supabase.from('v_team_sdg_strength').select('*')),
+    q(supabase.from('profiles').select('id').eq('role', 'pending')),
   ])
-  return { ref, events, evOut, overall, results, teamOut, teamCrit, sdgEvent, sdgOverall, evSdg, allSdg, teamSdg }
+  return { ref, events, evOut, overall, results, teamOut, teamCrit, sdgEvent, sdgOverall, evSdg, allSdg, teamSdg, pendingEvals }
 }
 
 export default function Dashboard() {
@@ -114,6 +116,12 @@ export default function Dashboard() {
           <button className="btn btn-primary" onClick={doWorkbook} disabled={building} title="The department's formatted evaluation workbook, filled in, with all sheets and charts">{building ? 'Building workbook…' : 'Download formatted workbook'}</button>
         </div>
       </div>
+      {data.pendingEvals?.length > 0 && (
+        <div className="alert alert-warn" role="status">
+          <span><b>{data.pendingEvals.length} evaluator account{data.pendingEvals.length === 1 ? ' is' : 's are'} waiting for approval.</b> They can't score until you approve them.</span>
+          <Link className="btn btn-small" to="/admin/people">Review</Link>
+        </div>
+      )}
       {exportErr && <ErrorBox error={exportErr} />}
       {reportNote && (
         <div className={`alert ${reportNote.length ? 'alert-warn' : 'alert-ok'}`} role="status">

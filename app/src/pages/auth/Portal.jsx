@@ -31,7 +31,7 @@ const PORTALS = {
     emailLabel: 'Email',
     signupButton: 'Create evaluator account',
     switchToSignup: 'New evaluator? Create an account',
-    note: 'After you sign up, the coordinator assigns you to the rounds you will judge.',
+    note: 'New evaluator accounts must be approved by the coordinator before you can score. After approval, the coordinator assigns you to the rounds you will judge.',
     other: { to: '/team', label: 'Registering a team? Use the team portal' },
   },
 }

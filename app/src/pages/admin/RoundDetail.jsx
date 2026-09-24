@@ -204,7 +204,7 @@ export default function RoundDetail() {
         <h2>Evaluators</h2>
         {profiles.length === 0 ? <p className="muted">No accounts yet.</p> : (
           <div className="check-grid">
-            {profiles.filter((p) => p.role !== 'team').map((p) => (
+            {profiles.filter((p) => p.role === 'evaluator' || p.role === 'admin').map((p) => (
               <label key={p.id} className="check">
                 <input type="checkbox" checked={assigned.has(p.id)} onChange={() => toggleEvaluator(p.id)} />
                 <span>{p.full_name || p.email}<small className="muted">{p.email}{p.role === 'admin' ? ', admin' : ''}</small></span>
@@ -212,7 +212,8 @@ export default function RoundDetail() {
             ))}
           </div>
         )}
-        <p className="muted small">Evaluators create their own account from the sign-in page; they then appear here.</p>
+        <p className="muted small">Evaluators create their own account through the evaluator portal and appear here once you approve them on the People page.
+          {profiles.some((p) => p.role === 'pending') && <> <Link to="/admin/people"><b>{profiles.filter((p) => p.role === 'pending').length} waiting for approval</b></Link>.</>}</p>
       </section>
 
       <section className="panel">

@@ -24,6 +24,7 @@ sdg-hackathon/
 > **Already set up with an earlier version?** Don't run `schema.sql` again. In the SQL Editor, run whichever of these you haven't run yet, in order. Each keeps all existing teams, marks and settings.
 > - `supabase/migration_002_sdg_strength.sql`: SDG contribution-strength ratings
 > - `supabase/migration_003_team_registration.sql`: team self-registration and team leaderboards
+> - `supabase/migration_004_evaluator_approval.sql`: new evaluator accounts need admin approval
 
 1. Sign up at supabase.com and click **New project**. Pick a region close to you (for example Mumbai), set a database password, and wait for it to finish.
 2. Open **SQL Editor ▸ New query**, paste in the whole of `supabase/schema.sql`, and click **Run**. You should see "Success". This creates:
@@ -77,7 +78,11 @@ npm run dev                     # opens on http://localhost:5173
 
    The home page lets people pick either. Both links are also shown on the **People** page. Each portal only accepts its own kind of account; signing in through the wrong one points the person to the right portal.
 2. **Rubric & targets**: check the target (default 60%), the level thresholds (70 / 60 / 50% of teams), the mapping, and the rubric descriptors.
-3. **People**: copy the evaluator portal link shown there and send it to your evaluators. Each creates an account and appears in the list. You can make other faculty admins here too.
+3. **People**: copy the evaluator portal link shown there and send it to your evaluators.
+   - Each new evaluator account waits under **Evaluator requests** until you approve or decline it. The Dashboard also shows how many are waiting.
+   - Until you approve them, they see a "Waiting for approval" screen and can't see any rounds, teams or marks.
+   - Check each name and email before approving. Anyone with the link can sign up, including students.
+   - You can make other faculty admins here too.
 4. **Rounds & teams ▸ Manage** for each section round:
    - Enter the date and venue.
    - Tick the evaluators judging that round.
@@ -135,6 +140,7 @@ Supabase row-level security enforces this rule in the database itself, not just 
 | Enter and edit marks | No | Only their own, only while the round is open | Anyone's, any time |
 | See other evaluators' marks and results | Leaderboard totals only, once published | No | Yes |
 | Change targets, rubric, mapping, teams, roles | No | No | Yes |
+| Before admin approval | Registers straight away | Sees only a "waiting for approval" screen | First account is admin |
 
 The app always keeps at least one admin.
 
