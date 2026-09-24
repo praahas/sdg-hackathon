@@ -9,7 +9,7 @@ import { claimedSdgs } from '../../lib/sdgStrength'
 
 const blankTeam = { team_code: '', name: '', members: '', primary_sdg: null, secondary_sdg: null, sdg_targets: '', problem: '' }
 
-function TeamRow({ team, sdgs, onSaved, onDeleted, origin }) {
+function TeamRow({ team, sdgs, onSaved, onDeleted, origin, autoCode }) {
   const [t, setT] = useState(team)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState(null)
@@ -20,7 +20,7 @@ function TeamRow({ team, sdgs, onSaved, onDeleted, origin }) {
     setBusy(true); setErr(null)
     try {
       await q(supabase.from('teams').update({
-        team_code: t.team_code, name: t.name, members: t.members,
+        ...(autoCode ? {} : { team_code: t.team_code }), name: t.name, members: t.members,
         primary_sdg: t.primary_sdg, secondary_sdg: t.secondary_sdg, sdg_targets: t.sdg_targets, problem: t.problem,
       }).eq('id', team.id))
       onSaved()
@@ -32,7 +32,9 @@ function TeamRow({ team, sdgs, onSaved, onDeleted, origin }) {
   }
   return (
     <tr className={dirty ? 'row-dirty' : ''}>
-      <td><input value={t.team_code ?? ''} onChange={(e) => set('team_code')(e.target.value)} aria-label="Team ID" className="w-code" /></td>
+      <td>{autoCode
+        ? <b className="auto-code" title="Assigned automatically">{team.team_code}</b>
+        : <input value={t.team_code ?? ''} onChange={(e) => set('team_code')(e.target.value)} aria-label="Team ID" className="w-code" />}</td>
       <td>
         <input value={t.name ?? ''} onChange={(e) => set('name')(e.target.value)} aria-label="Team name" />
         {origin && <small className="muted">From {origin}</small>}
@@ -53,12 +55,14 @@ function TeamRow({ team, sdgs, onSaved, onDeleted, origin }) {
 }
 
 function parseBulk(text) {
-  // One team per line, pasted from Excel: Team ID, Team name, Members, Primary SDG no., Secondary SDG no., Problem statement.
+  // One team per line, pasted from Excel: Team name, Members, Primary SDG no., Secondary SDG no., SDG targets, Problem statement.
+  // An old-style leading Team ID column (e.g. "3A-01") is ignored: IDs are assigned automatically.
   return text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).map((line) => {
-    const p = line.includes('\t') ? line.split('\t') : line.split('|')
+    let p = (line.includes('\t') ? line.split('\t') : line.split('|')).map((x) => x.trim())
+    if (/^[A-Za-z0-9]+-\d+$/.test(p[0] ?? '') && p.length > 1) p = p.slice(1)
     const sdg = (v) => { const n = parseInt(String(v ?? '').replace(/[^0-9]/g, ''), 10); return n >= 1 && n <= 17 ? n : null }
-    return { team_code: (p[0] ?? '').trim(), name: (p[1] ?? '').trim(), members: (p[2] ?? '').trim(),
-      primary_sdg: sdg(p[3]), secondary_sdg: sdg(p[4]), problem: (p[5] ?? '').trim() }
+    return { name: p[0] ?? '', members: p[1] ?? '', primary_sdg: sdg(p[2]), secondary_sdg: sdg(p[3]),
+      sdg_targets: p[4] || null, problem: p[5] ?? '' }
   }).filter((t) => t.name)
 }
 
@@ -124,14 +128,24 @@ export default function RoundDetail() {
     })
   }
   const addTeam = () => act(async () => {
-    await q(supabase.from('teams').insert({ ...newTeam, event_id: event.id }))
+    const { team_code, ...rest } = newTeam
+    await q(supabase.from('teams').insert({ ...rest, ...(event.kind === 'intra' ? {} : { team_code }), event_id: event.id }))
     setNewTeam(blankTeam)
   }, 'Team added.')
   const addBulk = () => {
     const rows = parseBulk(bulk)
-    if (!rows.length) return setMsg({ kind: 'error', text: 'No teams found. Paste one team per line with at least a team name in the second column.' })
+    if (!rows.length) return setMsg({ kind: 'error', text: 'No teams found. Paste one team per line with the team name in the first column.' })
     act(async () => { await q(supabase.from('teams').insert(rows.map((r) => ({ ...r, event_id: event.id })))); setBulk('') }, `${rows.length} teams added.`)
   }
+
+  const renumber = () => {
+    if (!window.confirm(`Renumber every team in ${event.name} as ${event.code}-01, ${event.code}-02, … in the order they were added? Use this to close gaps left by deleted teams, ideally before the event, since teams may already know their IDs.`)) return
+    act(async () => {
+      const n = await q(supabase.rpc('renumber_team_codes', { p_event: event.id }))
+      setMsg({ kind: 'ok', text: `${n} teams renumbered.` })
+    })
+  }
+  const gaps = event.kind === 'intra' && teams.some((t, i) => t.team_code !== `${event.code}-${String(i + 1).padStart(2, '0')}`)
 
   const resultOf = (id) => results.find((r) => r.team_id === id)
   const evaluators = profiles.filter((p) => assigned.has(p.id))
@@ -250,14 +264,22 @@ export default function RoundDetail() {
       </section>
 
       <section className="panel">
-        <h2>Teams ({teams.length})</h2>
+        <div className="panel-head">
+          <h2>Teams ({teams.length})</h2>
+          {event.kind === 'intra' && gaps && <button className="btn btn-small" onClick={renumber}>Renumber teams</button>}
+        </div>
+        {event.kind === 'intra' && (
+          <p className="muted small">Team IDs are assigned automatically in the order teams are added: {event.code}-01, {event.code}-02, … Deleting a team leaves a gap{gaps ? ', and this round has one; use Renumber teams to close it' : ''}.</p>
+        )}
         <div className="scroll">
           <table className="table table-edit">
             <thead><tr><th>Team ID</th><th>Team name</th><th>Members</th><th>Primary SDG</th><th>Secondary SDG</th><th>SDG targets</th><th>Problem statement</th><th /></tr></thead>
             <tbody>
-              {teams.map((t) => <TeamRow key={t.id} team={t} sdgs={ref.sdgs} origin={originName(t)} onSaved={reload} onDeleted={reload} />)}
+              {teams.map((t) => <TeamRow key={t.id} team={t} sdgs={ref.sdgs} origin={originName(t)} autoCode={event.kind === 'intra'} onSaved={reload} onDeleted={reload} />)}
               <tr className="row-new">
-                <td><input value={newTeam.team_code} onChange={(e) => setNewTeam({ ...newTeam, team_code: e.target.value })} placeholder="3A-01" className="w-code" aria-label="New team ID" /></td>
+                <td>{event.kind === 'intra'
+                  ? <span className="muted small">Auto</span>
+                  : <input value={newTeam.team_code} onChange={(e) => setNewTeam({ ...newTeam, team_code: e.target.value })} placeholder="3A-01" className="w-code" aria-label="New team ID" />}</td>
                 <td><input value={newTeam.name} onChange={(e) => setNewTeam({ ...newTeam, name: e.target.value })} placeholder="Team name" aria-label="New team name" /></td>
                 <td><input value={newTeam.members} onChange={(e) => setNewTeam({ ...newTeam, members: e.target.value })} placeholder="USNs / names" aria-label="New team members" /></td>
                 <td><SdgSelect sdgs={ref.sdgs} value={newTeam.primary_sdg} onChange={(v) => setNewTeam({ ...newTeam, primary_sdg: v })} /></td>
@@ -271,8 +293,8 @@ export default function RoundDetail() {
         </div>
         <details className="bulk">
           <summary>Add many teams at once</summary>
-          <p className="small">Copy rows from Excel and paste below, one team per line, in this column order: Team ID, Team name, Members, Primary SDG number, Secondary SDG number, Problem statement.</p>
-          <textarea rows={6} value={bulk} onChange={(e) => setBulk(e.target.value)} placeholder={'3A-01\tAquaSense\tUSN1, USN2, USN3\t6\t\tLow-cost water quality monitor'} />
+          <p className="small">Copy rows from Excel and paste below, one team per line, in this column order: Team name, Members, Primary SDG number, Secondary SDG number, SDG targets, Problem statement. Team IDs are added automatically in the order pasted.</p>
+          <textarea rows={6} value={bulk} onChange={(e) => setBulk(e.target.value)} placeholder={'AquaSense\tAsha (4CB23AI001), Bala (4CB23AI002)\t6\t\t6.1\tLow-cost water quality monitor'} />
           <button className="btn btn-primary" onClick={addBulk} disabled={!bulk.trim()}>Add pasted teams</button>
         </details>
       </section>

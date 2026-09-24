@@ -25,6 +25,7 @@ sdg-hackathon/
 > - `supabase/migration_002_sdg_strength.sql`: SDG contribution-strength ratings
 > - `supabase/migration_003_team_registration.sql`: team self-registration and team leaderboards
 > - `supabase/migration_004_evaluator_approval.sql`: new evaluator accounts need admin approval
+> - `supabase/migration_005_team_codes.sql`: automatic, sequential Team IDs (renumbers existing section-round teams once, in the order they were added)
 
 1. Sign up at supabase.com and click **New project**. Pick a region close to you (for example Mumbai), set a database password, and wait for it to finish.
 2. Open **SQL Editor ▸ New query**, paste in the whole of `supabase/schema.sql`, and click **Run**. You should see "Success". This creates:
@@ -86,7 +87,9 @@ npm run dev                     # opens on http://localhost:5173
 4. **Rounds & teams ▸ Manage** for each section round:
    - Enter the date and venue.
    - Tick the evaluators judging that round.
-   - Add teams one at a time, or open **Add many teams at once** and paste rows from Excel in this order: Team ID, Team name, Members, Primary SDG number, Secondary SDG number, Problem statement.
+   - Add teams one at a time, or open **Add many teams at once** and paste rows from Excel in this order: Team name, Members, Primary SDG number, Secondary SDG number, SDG targets, Problem statement.
+   - Team IDs are assigned automatically and in sequence per section: 3A-01, 3A-02 …, 3B-01 …, 5A-01 …, 5B-01 …. The order is the order teams are added, whether you add them, paste them, or teams self-register. IDs can't be typed or edited. Finalists keep their section ID in the inter-section round.
+   - Deleting a team leaves a gap in the numbering. A **Renumber teams** button then appears on the round's page to close it, keeping the original order. Do this before the event if you can, since teams may already know their IDs.
 4a. **Team self-registration (optional).** On a section round's page, click **Open registration**. Share the team portal link. Teams choose **New team? Create a team account**, sign up with one member's email, and fill in:
    - the round;
    - the team name;
@@ -95,7 +98,7 @@ npm run dev                     # opens on http://localhost:5173
    - the primary SDG, an optional secondary SDG, and the SDG targets they address;
    - the problem statement and proposed solution.
 
-   Each team gets a code such as `3A-08` and can edit its details until you close registration or evaluation of the team starts. Self-registered teams sit alongside the ones you add, marked "Self-registered" with their contact details.
+   Each team gets the next Team ID for its section, such as `3A-08`, and can edit its details until you close registration or evaluation of the team starts. Self-registered teams sit alongside the ones you add, marked "Self-registered" with their contact details.
 5. On the day, evaluators sign in, pick their round and team, mark the 9 rubric criteria, and then rate how strongly the solution advances each SDG the team claims (0 None, 1 Low, 2 Medium, 3 High). Everything saves when they press **Save scores**, and they can revise it until you close scoring. A team shows as done once all criteria and all claimed SDGs are rated.
 6. When a section round is finished, click **Close scoring** on its page.
 7. When both sections of a semester are finished, open the inter-section round and click **Pull shortlisted teams**. It copies the top 5 of each section. Assign evaluators to this round as well.
