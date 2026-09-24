@@ -1,6 +1,7 @@
 import React from 'react'
 import { NavLink } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import PoweredBy from './PoweredBy'
 
 export default function Layout({ profile, children }) {
   const admin = profile.role === 'admin'
@@ -27,6 +28,7 @@ export default function Layout({ profile, children }) {
         </div>
       </header>
       <main className="page">{children}</main>
+      <PoweredBy />
     </div>
   )
 }

@@ -3,6 +3,7 @@ import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { configured, supabase } from './lib/supabase'
 import Layout from './components/Layout'
 import { Loading } from './components/ui'
+import PoweredBy from './components/PoweredBy'
 import Portal, { FLASH_KEY, PORTAL_KEY } from './pages/auth/Portal'
 import MyRounds from './pages/evaluator/MyRounds'
 import RoundTeams from './pages/evaluator/RoundTeams'
@@ -20,6 +21,7 @@ function NotConfigured() {
     <div className="center-card">
       <h1>Connect the app to Supabase</h1>
       <p>Set <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code> in <code>.env.local</code> (local) or in your hosting provider's environment variables, then rebuild. The README walks through it.</p>
+      <PoweredBy />
     </div>
   )
 }

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { Link, Navigate, Route, Routes, useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
+import PoweredBy from '../../components/PoweredBy'
 
 // Which portal a sign-in started from, so the app can reject the wrong account type.
 export const PORTAL_KEY = 'sdg-portal'
@@ -97,6 +98,7 @@ function AuthPage({ portal }) {
           {mode === 'signin' ? p.switchToSignup : 'Already have an account? Sign in'}
         </button>
       </form>
+      <PoweredBy className="span-all" />
     </div>
   )
 }
@@ -125,6 +127,7 @@ function Landing() {
           <span className="landing-go">Sign in or create an account</span>
         </Link>
       </div>
+      <PoweredBy />
     </div>
   )
 }
