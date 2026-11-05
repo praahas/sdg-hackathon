@@ -159,7 +159,7 @@ The app always keeps at least one admin.
 ### Limits of the formatted workbook
 
 The workbook has fixed room, so the app tells you when something doesn't fit:
-- up to 20 teams per section round and 10 per inter-section round;
+- up to 30 teams per section round and 10 per inter-section round;
 - up to 3 evaluators per round (the 3 who gave marks, in name order);
 - exactly 9 rubric criteria and the 13 PO/PSO outcomes;
 - ties broken on criterion 4, as in the workbook.
