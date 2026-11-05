@@ -152,7 +152,7 @@ export async function downloadWorkbookReport() {
     const name = SHEET_FOR[e.code]
     if (!name) { warnings.push(`"${e.name}" has no sheet in the workbook, so it was left out.`); continue }
     const ws = await sheet(name)
-    const cap = e.kind === 'intra' ? 20 : 10
+    const cap = e.kind === 'intra' ? 30 : 10
     const ts = teams.filter((t) => t.event_id === e.id).sort(e.kind === 'inter'
       ? (a, b) => a.id - b.id
       : (a, b) => (a.team_code || '').localeCompare(b.team_code || '', undefined, { numeric: true }) || a.id - b.id)
