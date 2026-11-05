@@ -301,14 +301,15 @@ C_KEY = C_OUT + NO                    # hidden rank key
 FIRST = 7
 info = {}
 
-DEMO_NAMES = ["AquaSense", "AgriBot", "MediTrack", "EduBridge", "SheLead", "PureFlow", "SolarGrid",
+INTRA_ROWS = 30                       # team rows on each section-round sheet
+DEMO_NAMES = ["KrishiNet", "BlueTide", "AquaSense", "AgriBot", "MediTrack", "EduBridge", "SheLead", "PureFlow", "SolarGrid",
               "SkillHub", "SmartFactory", "EqualAccess", "UrbanPulse", "ReCycle AI", "CarbonLens",
               "OceanWatch", "GreenCanopy", "SafeCity", "FoodSaver", "WellMind", "CropDoc", "TrafficIQ"]
 
 def event_sheet(sheet, title, kind, src):
     ws = wb.create_sheet(sheet)
     ws.sheet_properties.tabColor = "2E75B6" if kind == "intra" else "C55A11"
-    n = 20 if kind == "intra" else 10
+    n = INTRA_ROWS if kind == "intra" else 10
     last = FIRST + n - 1
     lastcol = C_OUT + NO - 1
     ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=C_AVG - 1)
@@ -372,7 +373,7 @@ def event_sheet(sheet, title, kind, src):
             inp(ws.cell(r, 2), lab)
             for c in range(3, 9):
                 colL = L(c)
-                f = f"=IFERROR(INDEX('{ss}'!${colL}${FIRST}:${colL}${FIRST+19},MATCH({rk},'{ss}'!${L(C_RANK)}${FIRST}:${L(C_RANK)}${FIRST+19},0))&\"\",\"\")"
+                f = f"=IFERROR(INDEX('{ss}'!${colL}${FIRST}:${colL}${FIRST+INTRA_ROWS-1},MATCH({rk},'{ss}'!${L(C_RANK)}${FIRST}:${L(C_RANK)}${FIRST+INTRA_ROWS-1},0))&\"\",\"\")"
                 inp(ws.cell(r, c), f, align=LEFT if c in (4, 5, 8) else CENTER)
         for cs in C_E:
             for k in range(NC + 2): inp(ws.cell(r, cs + k))
@@ -509,7 +510,7 @@ def event_sheet(sheet, title, kind, src):
     ch3.series.append(Series(Reference(ws, min_col=C_TOT, min_row=FIRST, max_row=last), title="Total"))
     ch3.set_categories(Reference(ws, min_col=4, min_row=FIRST, max_row=last))
     ch3.x_axis.scaling.orientation = "maxMin"; ch3.y_axis.scaling.min = 0; ch3.y_axis.scaling.max = 100
-    ch3.legend = None; ch3.width, ch3.height = 20, 11 if kind == "intra" else 8; unhide_axes(ch3); datalabels(ch3)
+    ch3.legend = None; ch3.width, ch3.height = 20, 16 if kind == "intra" else 8; unhide_axes(ch3); datalabels(ch3)
     ws.add_chart(ch3, f"I{g0+41}")
     info[sheet] = dict(s=s, g0=g0, last=last, n=n, title=title, kind=kind)
     return ws
@@ -697,7 +698,7 @@ lines = [
  ("Round 2", "5th Sem inter-section hackathon: the 10 shortlisted teams are pulled in automatically → top 5 shortlisted (sheet '5 Inter')."),
  ("Who enters what", None),
  ("Coordinator (once)", "'Mapping' sheet: title, department, PO/PSO target %, attainment thresholds, SDG target strength, and (optionally) the rubric → PO/PSO correlation matrix. 'Rubric' sheet: criteria, max marks, descriptors."),
- ("Coordinator (per event)", "In each event sheet: date, venue, evaluator names, and team details (Team ID, name, members, Primary SDG and optional Secondary SDG from the dropdown, problem statement). Intra sheets hold up to 20 teams."),
+ ("Coordinator (per event)", "In each event sheet: date, venue, evaluator names, and team details (Team ID, name, members, Primary SDG and optional Secondary SDG from the dropdown, problem statement). Intra sheets hold up to " + str(INTRA_ROWS) + " teams."),
  ("Evaluators", "In your own coloured block: the 9 rubric marks (0 to each criterion's maximum in row 6), then the contribution strength (0–3) for the team's Primary SDG and, if the team has one, its Secondary SDG. The secondary cell turns grey when there is no secondary SDG. Leave a block blank if fewer than 3 evaluators are judging."),
  ("Everything else is automatic", "Averages across evaluators, total, %, rank, shortlist status, per-team PO/PSO attainment, event attainment levels, SDG strength and goal-wise attainment, the Dashboard and all charts."),
  ("Colour legend", None),
@@ -739,13 +740,13 @@ if DEMO:
     SDGS_DEMO = [SDGS[i] for i in (2, 3, 5, 6, 8, 10, 11, 12, 1, 4)]
     for sh, t, kind, src in EVENTS:
         ws = wb[sh]; I = info[sh]
-        nteams = 16 if kind == "intra" else 10
+        nteams = (22 if sh == "3A Intra" else 16) if kind == "intra" else 10
         ws["B2"] = "15-10-2026"; ws["E2"] = "Seminar Hall / Dr. Coordinator"
         for e, cs in enumerate(C_E): ws.cell(3, cs + 2).value = f"Evaluator {chr(65+e)}"
-        names = random.sample(DEMO_NAMES, 16)
+        names = random.sample(DEMO_NAMES, 22)
         for i in range(nteams):
             r = FIRST + i
-            skill = random.uniform(0.45, 0.92)
+            skill = random.uniform(0.45, 0.92) if not (sh == '3A Intra' and i == 21) else 0.97
             has_sec = False
             if kind == "intra":
                 ws.cell(r, 3).value = f"{sh[:2]}-{i+1:02d}"; ws.cell(r, 4).value = names[i]
