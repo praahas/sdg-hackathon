@@ -11,6 +11,63 @@ const rpcArgs = (v) => ({
   p_secondary: v.secondary, p_targets: v.targets, p_problem: v.problem,
 })
 
+function ProblemChooser({ team, round, options, sdgById, onChosen }) {
+  const [busy, setBusy] = useState(null)
+  const [err, setErr] = useState(null)
+  const [changing, setChanging] = useState(false)
+  const chosen = options.find((p) => p.id === team.problem_statement_id)
+  const canChoose = round?.ps_selection_open
+  async function choose(p) {
+    setBusy(p.id); setErr(null)
+    try {
+      await q(supabase.rpc('select_problem_statement', { p_team: team.id, p_ps: p.id }))
+      setChanging(false)
+      await onChosen(`You chose ${p.code}: ${p.title} for ${round.name}.`)
+    } catch (e) { setErr(e.message) } finally { setBusy(null) }
+  }
+  const showList = !chosen || changing
+  return (
+    <section className={`panel ps-choose ${chosen ? '' : 'panel-attn'}`}>
+      <h2>Problem statement for {round?.name}</h2>
+      {chosen && !changing && (
+        <div className="ps-card chosen">
+          <div className="ps-card-head"><b>{chosen.code}</b> <span>{chosen.title}</span></div>
+          {chosen.description && <p>{chosen.description}</p>}
+          <div className="chips">{[chosen.primary_sdg, chosen.secondary_sdg].filter(Boolean).map((id) => <SdgChip key={id} sdg={sdgById[id]} />)}
+            {chosen.sdg_targets && <small className="muted">Targets {chosen.sdg_targets}</small>}</div>
+          {canChoose
+            ? <button className="btn btn-small" onClick={() => setChanging(true)}>Change problem statement</button>
+            : <p className="muted small">Selection is closed. Contact the coordinator to change it.</p>}
+        </div>
+      )}
+      {showList && (
+        <>
+          <p className="muted">{canChoose
+            ? 'Choose the problem your team will solve in this round. Your SDGs for this round come from the statement you choose, and evaluators will rate how well you advance them.'
+            : "The coordinator hasn't opened problem statement selection yet. You can read the statements now."}</p>
+          <div className="ps-cards">
+            {options.map((p) => (
+              <div key={p.id} className={`ps-card ${p.id === team.problem_statement_id ? 'chosen' : ''}`}>
+                <div className="ps-card-head"><b>{p.code}</b> <span>{p.title}</span></div>
+                {p.description && <p>{p.description}</p>}
+                <div className="chips">{[p.primary_sdg, p.secondary_sdg].filter(Boolean).map((id) => <SdgChip key={id} sdg={sdgById[id]} compact />)}
+                  {p.sdg_targets && <small className="muted">Targets {p.sdg_targets}</small>}</div>
+                {canChoose && p.id !== team.problem_statement_id && (
+                  <button className="btn btn-small btn-primary" disabled={busy !== null} onClick={() => choose(p)}>
+                    {busy === p.id ? 'Saving…' : 'Choose this'}
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+          {changing && <button className="btn btn-small" onClick={() => setChanging(false)}>Keep my current choice</button>}
+        </>
+      )}
+      {err && <div className="alert alert-error" role="alert">{err}</div>}
+    </section>
+  )
+}
+
 export default function TeamHome({ profile }) {
   const { data, error, loading, reload } = useLoad(async () => {
     const [ref, events, mine] = await Promise.all([
@@ -18,14 +75,16 @@ export default function TeamHome({ profile }) {
       q(supabase.from('events').select('*').order('sort')),
       q(supabase.from('teams').select('*').eq('owner_id', profile.id).order('id')),
     ])
-    return { ref, events, mine }
+    const ids = [...new Set(mine.map((t) => t.event_id))]
+    const pss = ids.length ? await q(supabase.from('problem_statements').select('*').in('event_id', ids).order('code')) : []
+    return { ref, events, mine, pss }
   }, [profile.id])
   const [editing, setEditing] = useState(false)
   const [done, setDone] = useState(null)
 
   if (loading && !data) return <Loading />
   if (error) return <ErrorBox error={error} onRetry={reload} />
-  const { ref, events, mine } = data
+  const { ref, events, mine, pss } = data
   const evById = Object.fromEntries(events.map((e) => [e.id, e]))
   const team = mine.find((t) => evById[t.event_id]?.kind === 'intra')
   const finals = mine.filter((t) => evById[t.event_id]?.kind === 'inter')
@@ -79,7 +138,11 @@ export default function TeamHome({ profile }) {
       </div>
       {done && <Notice kind="ok">{done}</Notice>}
       {finals.map((f) => (
-        <Notice key={f.id} kind="ok">Your team has been shortlisted for <b>{evById[f.event_id]?.name}</b>.</Notice>
+        <Notice key={f.id} kind="ok"><span>Your team qualified for <b>{evById[f.event_id]?.name}</b>.</span></Notice>
+      ))}
+      {mine.filter((t) => pss.some((p) => p.event_id === t.event_id)).map((t) => (
+        <ProblemChooser key={t.id} team={t} round={evById[t.event_id]} options={pss.filter((p) => p.event_id === t.event_id)}
+          sdgById={ref.sdgById} onChosen={async (msg) => { setDone(msg); await reload() }} />
       ))}
       <section className="panel team-card">
         <dl className="kv">

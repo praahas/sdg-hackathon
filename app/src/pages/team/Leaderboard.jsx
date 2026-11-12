@@ -4,7 +4,7 @@ import { useLoad } from '../../lib/useLoad'
 import { loadReference } from '../../lib/reference'
 import { num, pct } from '../../lib/format'
 import { fmtStrength } from '../../lib/sdgStrength'
-import { ErrorBox, Loading, SdgChip } from '../../components/ui'
+import { ErrorBox, Loading, SdgChip, StatusTag } from '../../components/ui'
 
 async function loadBoards(profileId) {
   const [ref, events, mine] = await Promise.all([
@@ -58,7 +58,7 @@ export default function Leaderboard({ profile }) {
                         <td className="nowrap col-sdg"><SdgChip sdg={ref.sdgById[r.primary_sdg]} compact />{r.secondary_sdg && <SdgChip sdg={ref.sdgById[r.secondary_sdg]} compact />}</td>
                         <td className="r">{r.total != null ? <>{num(r.total)}<small className="muted"> / {num(r.max_total)}</small></> : <span className="muted">Not scored</span>}</td>
                         <td className="r">{pct(r.pct)}</td>
-                        <td>{r.status === 'Shortlisted' ? <span className="tag tag-open">Shortlisted</span> : <span className="muted">{r.status ?? ''}</span>}</td>
+                        <td><StatusTag status={r.status} /></td>
                       </tr>
                     ))}
                   </tbody>
