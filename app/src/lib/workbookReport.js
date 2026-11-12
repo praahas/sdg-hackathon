@@ -10,12 +10,12 @@ const XML_NS = 'http://www.w3.org/XML/1998/namespace'
 const NC = 9, NO = 13, FIRST = 7
 const EW = NC + 2
 const C_E = [9, 9 + EW, 9 + 2 * EW]
-const SHEET_FOR = { '3A': '3A Intra', '3B': '3B Intra', '3-INTER': '3 Inter', '5A': '5A Intra', '5B': '5B Intra', '5-INTER': '5 Inter' }
+const SHEET_FOR = { '3A': '3A Intra', '3B': '3B Intra', '3-INTER': '3 Inter', '5A': '5A Intra', '5B': '5B Intra', '5-INTER': '5 Inter', DEPT: 'Dept Final' }
 
 const colName = (n) => { let s = ''; while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26) } return s }
 const colNum = (s) => s.split('').reduce((a, ch) => a * 26 + ch.charCodeAt(0) - 64, 0)
 const ordinal = (n) => (n % 10 === 1 && n !== 11 ? 'st' : n % 10 === 2 && n !== 12 ? 'nd' : n % 10 === 3 && n !== 13 ? 'rd' : 'th')
-const sectionLabel = (e) => (e ? `${e.semester}${ordinal(e.semester)} Sem - ${e.section ?? ''}`.trim() : '')
+const sectionLabel = (e) => (!e || e.semester == null ? '' : e.section ? `${e.semester}${ordinal(e.semester)} Sem - ${e.section}` : `${e.semester}${ordinal(e.semester)} Sem`)
 const sdgText = (g) => (g ? `SDG ${g.id} - ${g.name}` : null)
 const who = (p) => (p ? p.full_name || p.email : null)
 const num = (v) => (v === null || v === undefined || v === '' ? null : Number(v))
@@ -145,6 +145,21 @@ export async function downloadWorkbookReport() {
   const sl = await sheet('SDG List')
   ref.sdgs.forEach((g, i) => sl.set(`A${2 + i}`, sdgText(g)))
 
+  // Problem statements for the department final (the workbook has one sheet, 20 rows)
+  const dept = events.find((e) => e.code === 'DEPT')
+  const pss = dept ? await q(supabase.from('problem_statements').select('*').eq('event_id', dept.id).order('code')) : []
+  if (pss.length > 20) warnings.push(`The department final has ${pss.length} problem statements; the workbook lists 20, so ${pss.length - 20} were left out of its Problem Statements sheet.`)
+  const psSheet = await sheet('Problem Statements')
+  for (let i = 0; i < 20; i++) {
+    const r = 5 + i, ps = pss[i]
+    psSheet.set(`A${r}`, ps ? ps.code : `PS${String(i + 1).padStart(2, '0')}`)
+    psSheet.set(`B${r}`, ps?.title || null)
+    psSheet.set(`C${r}`, ps?.description || null)
+    psSheet.set(`D${r}`, ps ? sdgText(ref.sdgById[ps.primary_sdg]) : null)
+    psSheet.set(`E${r}`, ps?.secondary_sdg ? sdgText(ref.sdgById[ps.secondary_sdg]) : null)
+    psSheet.set(`F${r}`, ps?.sdg_targets || null)
+  }
+
   // Rounds
   const evById = Object.fromEntries(events.map((e) => [e.id, e]))
   const teamById = Object.fromEntries(teams.map((t) => [t.id, t]))
@@ -173,8 +188,10 @@ export async function downloadWorkbookReport() {
       const r = FIRST + i
       const t = ts[i]
       const secondary = t && t.secondary_sdg && t.secondary_sdg !== t.primary_sdg ? t.secondary_sdg : null
-      const origin = t?.origin_team_id ? evById[teamById[t.origin_team_id]?.event_id] : null
-      ws.set(`B${r}`, t ? sectionLabel(e.kind === 'inter' ? origin : e) || null : null)
+      // Finalists (inter-section and department rounds) show their original section.
+      let root = t
+      for (let hops = 0; root?.origin_team_id && teamById[root.origin_team_id] && hops < 5; hops++) root = teamById[root.origin_team_id]
+      ws.set(`B${r}`, t ? sectionLabel(evById[root.event_id]) || null : null)
       ws.set(`C${r}`, t?.team_code || null)
       ws.set(`D${r}`, t?.name || null)
       ws.set(`E${r}`, t?.members || null)
