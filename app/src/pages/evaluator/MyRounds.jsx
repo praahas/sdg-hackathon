@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { supabase, q } from '../../lib/supabase'
 import { useLoad } from '../../lib/useLoad'
 import { ErrorBox, Loading } from '../../components/ui'
+import { roundType } from '../../lib/format'
 import { claimedSdgs } from '../../lib/sdgStrength'
 
 export default function MyRounds({ profile }) {
@@ -52,7 +53,7 @@ export default function MyRounds({ profile }) {
                   <div>
                     <h2>{e.name}</h2>
                     <p className="muted">
-                      {e.kind === 'inter' ? 'Inter-section round' : 'Intra-class round'}
+                      {roundType(e)} round
                       {e.event_date ? `, ${new Date(e.event_date).toLocaleDateString()}` : ''}
                       {e.venue ? `, ${e.venue}` : ''}
                     </p>

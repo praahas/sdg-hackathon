@@ -93,14 +93,15 @@ export default function ScoreTeam({ profile }) {
   const { eventId, teamId } = useParams()
   const navigate = useNavigate()
   const { data, error, loading, reload } = useLoad(async () => {
-    const [ref, event, teams, mine, mineSdg] = await Promise.all([
+    const [ref, event, teams, mine, mineSdg, pss] = await Promise.all([
       loadReference(),
       q(supabase.from('events').select('*').eq('id', eventId).single()),
       q(supabase.from('teams').select('*').eq('event_id', eventId).order('team_code').order('id')),
       q(supabase.from('scores').select('*').eq('team_id', teamId).eq('evaluator_id', profile.id)),
       q(supabase.from('sdg_ratings').select('*').eq('team_id', teamId).eq('evaluator_id', profile.id)),
+      q(supabase.from('problem_statements').select('*').eq('event_id', eventId)),
     ])
-    return { ref, event, teams, mine, mineSdg }
+    return { ref, event, teams, mine, mineSdg, pss }
   }, [eventId, teamId, profile.id])
 
   const [values, setValues] = useState({})
@@ -166,6 +167,7 @@ export default function ScoreTeam({ profile }) {
             <p className="muted">{team.team_code}</p>
             <h1>{team.name}</h1>
             {team.problem && <p className="lede">{team.problem}</p>}
+            {(() => { const ps = data.pss.find((x) => x.id === team.problem_statement_id); return ps?.description ? <p className="muted small ps-desc">{ps.description}</p> : null })()}
             {team.members && <p className="muted small">{team.members}</p>}
           </div>
           <div className="team-sdgs">
