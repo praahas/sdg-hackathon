@@ -428,3 +428,24 @@ figcaption { font-size: .86rem; font-weight: 650; color: var(--ink-2); margin-bo
 .request-list li > div:first-child { display: flex; flex-direction: column; }
 .panel-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .auto-code { display: inline-block; min-width: 64px; font-variant-numeric: tabular-nums; }
+/* ---------- problem statements & places ---------- */
+.tag-place { background: var(--line-2); color: var(--ink-2); margin-left: 0; }
+.podium { color: #5c4300; }
+.podium-1 { background: #f7d774; }
+.podium-2 { background: #dfe3e6; }
+.podium-3 { background: #ecc9a3; }
+.ps-list { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+.ps-row { display: grid; grid-template-columns: 56px 1fr auto; gap: 12px; align-items: start; padding: 10px; border: 1px solid var(--line-2); border-radius: var(--radius-m); }
+.ps-row.ps-new { background: #f4f8f7; border-style: dashed; }
+.ps-code { font-size: 1rem; padding-top: 8px; }
+.ps-fields { display: flex; flex-direction: column; gap: 6px; }
+.ps-sdgs { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+.ps-actions { display: flex; flex-direction: column; gap: 6px; }
+.ps-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin: 10px 0; }
+.ps-card { border: 1px solid var(--line); border-radius: var(--radius-m); padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; background: #fff; }
+.ps-card.chosen { border-color: var(--teal); box-shadow: 0 0 0 2px rgba(15,122,110,.15); }
+.ps-card p { margin: 0; font-size: .92rem; }
+.ps-card .btn { align-self: flex-start; }
+.ps-card-head b { color: var(--teal); margin-right: 4px; }
+.ps-desc { margin-top: 4px; }
+@media (max-width: 860px) { .ps-row { grid-template-columns: 1fr; } .ps-actions { flex-direction: row; } }
