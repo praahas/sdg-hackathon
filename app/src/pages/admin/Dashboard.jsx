@@ -8,7 +8,7 @@ import { supabase, q } from '../../lib/supabase'
 import { useLoad } from '../../lib/useLoad'
 import { loadReference } from '../../lib/reference'
 import { num, pct } from '../../lib/format'
-import { ErrorBox, LevelChip, Loading, SdgChip } from '../../components/ui'
+import { ErrorBox, LevelChip, Loading, SdgChip, StatusTag } from '../../components/ui'
 import { fmtStrength, strengthLabel } from '../../lib/sdgStrength'
 
 const INK = '#16323F', TEAL = '#0F7A6E', SAND = '#C89B3C'
@@ -237,7 +237,7 @@ export default function Dashboard() {
                     <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 11 }} />
                     <Tooltip formatter={(v) => num(v)} />
                     <Bar isAnimationActive={false} dataKey="total" name="Total" label={{ position: 'right', fontSize: 11, formatter: (v) => num(v) }}>
-                      {teamRows.map((r) => <Cell key={r.team_id} fill={r.status === 'Shortlisted' ? TEAL : '#9DB3B0'} />)}
+                      {teamRows.map((r) => <Cell key={r.team_id} fill={r.status === 'Shortlisted' || /^[123](st|nd|rd) place$/.test(r.status || '') ? TEAL : '#9DB3B0'} />)}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
@@ -268,7 +268,7 @@ export default function Dashboard() {
                       {eid && ref.criteria.map((c) => <td key={c.id} className="r">{num(teamCrit.find((x) => x.team_id === r.team_id && x.criterion_id === c.id)?.avg_score)}</td>)}
                       <td className="r"><b>{num(r.total)}</b></td>
                       <td className="r">{pct(r.pct)}</td>
-                      <td>{r.status === 'Shortlisted' ? <span className="tag tag-open">Shortlisted</span> : <span className="muted">{r.status}</span>}</td>
+                      <td><StatusTag status={r.status} /></td>
                       {eid && ref.outcomes.map((o) => <td key={o.code} className="r">{pct(teamOut.find((x) => x.team_id === r.team_id && x.outcome_code === o.code)?.attainment, 0)}</td>)}
                     </tr>
                   ))}

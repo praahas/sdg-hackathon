@@ -4,24 +4,28 @@ import { supabase, q } from '../../lib/supabase'
 import { useLoad } from '../../lib/useLoad'
 import { loadReference } from '../../lib/reference'
 import { num, pct } from '../../lib/format'
-import { ErrorBox, Loading, SdgSelect } from '../../components/ui'
+import { ErrorBox, Loading, SdgChip, SdgSelect, StatusTag } from '../../components/ui'
 import { claimedSdgs } from '../../lib/sdgStrength'
 
 const blankTeam = { team_code: '', name: '', members: '', primary_sdg: null, secondary_sdg: null, sdg_targets: '', problem: '' }
 
-function TeamRow({ team, sdgs, onSaved, onDeleted, origin, autoCode }) {
+function TeamRow({ team, sdgs, onSaved, onDeleted, origin, autoCode, pss = [] }) {
   const [t, setT] = useState(team)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState(null)
   useEffect(() => setT(team), [team])
-  const dirty = ['team_code', 'name', 'members', 'primary_sdg', 'secondary_sdg', 'sdg_targets', 'problem'].some((k) => (t[k] ?? '') !== (team[k] ?? ''))
+  const usesPs = pss.length > 0
+  const psChosen = usesPs && t.problem_statement_id
+  const dirty = ['team_code', 'name', 'members', 'primary_sdg', 'secondary_sdg', 'sdg_targets', 'problem', 'problem_statement_id'].some((k) => (t[k] ?? '') !== (team[k] ?? ''))
   const set = (k) => (v) => setT({ ...t, [k]: v })
   async function save() {
     setBusy(true); setErr(null)
     try {
       await q(supabase.from('teams').update({
         ...(autoCode ? {} : { team_code: t.team_code }), name: t.name, members: t.members,
-        primary_sdg: t.primary_sdg, secondary_sdg: t.secondary_sdg, sdg_targets: t.sdg_targets, problem: t.problem,
+        ...(psChosen
+          ? { problem_statement_id: t.problem_statement_id }   // problem text and SDGs come from the statement
+          : { problem_statement_id: null, primary_sdg: t.primary_sdg, secondary_sdg: t.secondary_sdg, sdg_targets: t.sdg_targets, problem: t.problem }),
       }).eq('id', team.id))
       onSaved()
     } catch (e) { setErr(e.message) } finally { setBusy(false) }
@@ -41,16 +45,135 @@ function TeamRow({ team, sdgs, onSaved, onDeleted, origin, autoCode }) {
         {team.owner_id && <small className="muted self-reg" title={team.contact_email}>Self-registered: {team.contact_email}{team.contact_phone ? `, ${team.contact_phone}` : ''}</small>}
       </td>
       <td><input value={t.members ?? ''} onChange={(e) => set('members')(e.target.value)} aria-label="Members" /></td>
-      <td><SdgSelect sdgs={sdgs} value={t.primary_sdg} onChange={set('primary_sdg')} /></td>
-      <td><SdgSelect sdgs={sdgs} value={t.secondary_sdg} onChange={set('secondary_sdg')} /></td>
-      <td><input value={t.sdg_targets ?? ''} onChange={(e) => set('sdg_targets')(e.target.value)} aria-label="SDG targets" className="w-code" /></td>
-      <td><input value={t.problem ?? ''} onChange={(e) => set('problem')(e.target.value)} aria-label="Problem statement" /></td>
+      {psChosen ? (
+        <>
+          <td colSpan={3}><small className="muted">SDGs from {pss.find((p) => p.id === Number(t.problem_statement_id))?.code}: </small>
+            {[team.primary_sdg, team.secondary_sdg].filter(Boolean).map((id) => <SdgChip key={id} sdg={sdgs.find((x) => x.id === id)} compact />)}
+            {team.sdg_targets && <small className="muted"> {team.sdg_targets}</small>}</td>
+        </>
+      ) : (
+        <>
+          <td><SdgSelect sdgs={sdgs} value={t.primary_sdg} onChange={set('primary_sdg')} /></td>
+          <td><SdgSelect sdgs={sdgs} value={t.secondary_sdg} onChange={set('secondary_sdg')} /></td>
+          <td><input value={t.sdg_targets ?? ''} onChange={(e) => set('sdg_targets')(e.target.value)} aria-label="SDG targets" className="w-code" /></td>
+        </>
+      )}
+      <td>{usesPs ? (
+        <select value={t.problem_statement_id ?? ''} aria-label="Problem statement"
+          onChange={(e) => set('problem_statement_id')(e.target.value ? Number(e.target.value) : null)}>
+          <option value="">Not chosen yet</option>
+          {pss.map((p) => <option key={p.id} value={p.id}>{p.code}: {p.title}</option>)}
+        </select>
+      ) : <input value={t.problem ?? ''} onChange={(e) => set('problem')(e.target.value)} aria-label="Problem statement" />}</td>
       <td className="actions">
         <button className="btn btn-small btn-primary" disabled={!dirty || busy || !t.name} onClick={save}>Save</button>
         <button className="btn btn-small btn-danger" onClick={remove}>Delete</button>
         {err && <small className="field-error">{err}</small>}
       </td>
     </tr>
+  )
+}
+
+const blankPs = { title: '', description: '', primary_sdg: null, secondary_sdg: null, sdg_targets: '' }
+
+function PsRow({ ps, sdgs, takenBy, onChanged }) {
+  const [p, setP] = useState(ps)
+  const [err, setErr] = useState(null)
+  useEffect(() => setP(ps), [ps])
+  const keys = ['title', 'description', 'primary_sdg', 'secondary_sdg', 'sdg_targets']
+  const dirty = keys.some((k) => (p[k] ?? '') !== (ps[k] ?? ''))
+  const set = (k) => (v) => setP({ ...p, [k]: v })
+  async function save() {
+    setErr(null)
+    if (!p.title || !p.primary_sdg) return setErr('A title and a primary SDG are required.')
+    try {
+      await q(supabase.from('problem_statements').update(Object.fromEntries(keys.map((k) => [k, p[k] === '' ? null : p[k]]))).eq('id', ps.id))
+      onChanged()
+    } catch (e) { setErr(e.message) }
+  }
+  async function remove() {
+    if (!window.confirm(`Delete ${ps.code}? ${takenBy.length ? `${takenBy.length} team(s) chose it and will need to choose again.` : ''}`)) return
+    try { await q(supabase.from('problem_statements').delete().eq('id', ps.id)); onChanged() } catch (e) { setErr(e.message) }
+  }
+  return (
+    <div className={`ps-row ${dirty ? 'row-dirty' : ''}`}>
+      <b className="ps-code">{ps.code}</b>
+      <div className="ps-fields">
+        <input value={p.title} onChange={(e) => set('title')(e.target.value)} aria-label={`${ps.code} title`} placeholder="Title" />
+        <textarea rows={2} value={p.description ?? ''} onChange={(e) => set('description')(e.target.value)} aria-label={`${ps.code} description`} placeholder="Description shown to teams" />
+        <div className="ps-sdgs">
+          <label>Expected primary SDG<SdgSelect sdgs={sdgs} value={p.primary_sdg} onChange={set('primary_sdg')} allowEmpty={false} /></label>
+          <label>Expected secondary SDG<SdgSelect sdgs={sdgs.filter((x) => x.id !== p.primary_sdg)} value={p.secondary_sdg} onChange={set('secondary_sdg')} /></label>
+          <label>SDG targets<input value={p.sdg_targets ?? ''} onChange={(e) => set('sdg_targets')(e.target.value)} placeholder="e.g. 6.4" /></label>
+        </div>
+        <small className="muted">{takenBy.length ? `Chosen by ${takenBy.map((t) => t.team_code).join(', ')}` : 'Not chosen by any team yet'}</small>
+        {err && <small className="field-error">{err}</small>}
+      </div>
+      <div className="ps-actions">
+        <button className="btn btn-small btn-primary" disabled={!dirty} onClick={save}>Save</button>
+        <button className="btn btn-small btn-danger" onClick={remove}>Delete</button>
+      </div>
+    </div>
+  )
+}
+
+function ProblemStatements({ event, pss, teams, sdgs, act, reload }) {
+  const [np, setNp] = useState(blankPs)
+  const [open, setOpen] = useState(pss.length > 0)
+  const add = () => {
+    if (!np.title || !np.primary_sdg) return
+    act(async () => {
+      await q(supabase.from('problem_statements').insert({ ...np, sdg_targets: np.sdg_targets || null, event_id: event.id }))
+      setNp(blankPs)
+    }, 'Problem statement added.')
+  }
+  if (!open) {
+    return (
+      <section className="panel">
+        <h2>Problem statements</h2>
+        <p className="muted">Set problem statements if teams in this round must each work on one of yours. Each statement carries the SDGs it's expected to address, which then become the team's SDGs for this round.</p>
+        <button className="btn" onClick={() => setOpen(true)}>Set problem statements</button>
+      </section>
+    )
+  }
+  return (
+    <section className="panel">
+      <div className="panel-head">
+        <h2>Problem statements ({pss.length})</h2>
+      </div>
+      <div className="toggle-row">
+        <div>
+          <b>Teams {event.ps_selection_open ? 'can' : "can't"} choose a problem statement now.</b>
+          <p className="muted small">{event.ps_selection_open
+            ? 'Teams with a team account choose from the team portal and can change their choice until evaluation of their team starts.'
+            : 'Open selection to let teams choose from the team portal. You can always assign a statement yourself in the Teams table below.'}</p>
+        </div>
+        <button className={`btn ${event.ps_selection_open ? 'btn-danger' : 'btn-primary'}`}
+          onClick={() => act(() => q(supabase.from('events').update({ ps_selection_open: !event.ps_selection_open }).eq('id', event.id)),
+            event.ps_selection_open ? 'Problem statement selection closed.' : 'Problem statement selection opened.')}>
+          {event.ps_selection_open ? 'Close selection' : 'Open selection'}
+        </button>
+      </div>
+      <div className="ps-list">
+        {pss.map((p) => <PsRow key={p.id} ps={p} sdgs={sdgs} takenBy={teams.filter((t) => t.problem_statement_id === p.id)} onChanged={reload} />)}
+        <div className="ps-row ps-new">
+          <b className="ps-code muted">New</b>
+          <div className="ps-fields">
+            <input value={np.title} onChange={(e) => setNp({ ...np, title: e.target.value })} placeholder="Title" aria-label="New problem statement title" />
+            <textarea rows={2} value={np.description} onChange={(e) => setNp({ ...np, description: e.target.value })} placeholder="Description shown to teams" aria-label="New problem statement description" />
+            <div className="ps-sdgs">
+              <label>Expected primary SDG<SdgSelect sdgs={sdgs} value={np.primary_sdg} onChange={(v) => setNp({ ...np, primary_sdg: v })} /></label>
+              <label>Expected secondary SDG<SdgSelect sdgs={sdgs.filter((x) => x.id !== np.primary_sdg)} value={np.secondary_sdg} onChange={(v) => setNp({ ...np, secondary_sdg: v })} /></label>
+              <label>SDG targets<input value={np.sdg_targets} onChange={(e) => setNp({ ...np, sdg_targets: e.target.value })} placeholder="e.g. 6.4" /></label>
+            </div>
+          </div>
+          <div className="ps-actions">
+            <button className="btn btn-small btn-primary" disabled={!np.title || !np.primary_sdg} onClick={add}>Add</button>
+          </div>
+        </div>
+      </div>
+      <p className="muted small">Codes PS01, PS02 … are assigned automatically. Editing a statement's SDGs updates every team that chose it.</p>
+    </section>
   )
 }
 
@@ -69,7 +192,7 @@ function parseBulk(text) {
 export default function RoundDetail() {
   const { eventId } = useParams()
   const { data, error, loading, reload } = useLoad(async () => {
-    const [ref, event, allEvents, teams, profiles, ee, results] = await Promise.all([
+    const [ref, event, allEvents, teams, profiles, ee, results, pss] = await Promise.all([
       loadReference(),
       q(supabase.from('events').select('*').eq('id', eventId).single()),
       q(supabase.from('events').select('*').order('sort')),
@@ -77,6 +200,7 @@ export default function RoundDetail() {
       q(supabase.from('profiles').select('*').order('full_name')),
       q(supabase.from('event_evaluators').select('*').eq('event_id', eventId)),
       q(supabase.from('v_team_result').select('*').eq('event_id', eventId)),
+      q(supabase.from('problem_statements').select('*').eq('event_id', eventId).order('code')),
     ])
     const ids = teams.map((t) => t.id)
     const [scoreRows, ratingRows] = ids.length
@@ -88,7 +212,7 @@ export default function RoundDetail() {
     const scores = [...scoreRows, ...ratingRows]
     const originIds = teams.map((t) => t.origin_team_id).filter(Boolean)
     const origins = originIds.length ? await q(supabase.from('teams').select('id, event_id').in('id', originIds)) : []
-    return { ref, event, allEvents, teams, profiles, ee, results, scores, origins }
+    return { ref, event, allEvents, teams, profiles, ee, results, scores, origins, pss }
   }, [eventId])
 
   const [meta, setMeta] = useState({ event_date: '', venue: '' })
@@ -99,7 +223,7 @@ export default function RoundDetail() {
 
   if (loading && !data) return <Loading />
   if (error) return <ErrorBox error={error} onRetry={reload} />
-  const { ref, event, allEvents, teams, profiles, ee, results, scores, origins } = data
+  const { ref, event, allEvents, teams, profiles, ee, results, scores, origins, pss } = data
   const assigned = new Set(ee.map((x) => x.evaluator_id))
   const sources = allEvents.filter((e) => e.feeds_into === event.id)
   const evName = (id) => allEvents.find((e) => e.id === id)?.name
@@ -156,7 +280,9 @@ export default function RoundDetail() {
         <Link to="/admin/rounds" className="back">Rounds and teams</Link>
         <h1>{event.name}</h1>
         <p className="lede">{event.kind === 'inter'
-          ? `Finalists come from ${sources.map((s) => s.name).join(' and ') || 'the section rounds'}. The top ${ref.settings.shortlist_count} here are shortlisted.`
+          ? `Finalists come from ${sources.map((s) => s.name).join(' and ') || 'the earlier rounds'}. ${event.shortlists
+              ? `The top ${ref.settings.shortlist_count} here are shortlisted${event.feeds_into ? ` and go on to ${evName(event.feeds_into)}` : ''}.`
+              : 'There is no shortlist here: every team is ranked by total score (1st place, 2nd place, …).'}`
           : `The top ${ref.settings.shortlist_count} teams go on to ${evName(event.feeds_into) || 'the inter-section round'}.`}</p>
       </div>
       {msg && <div className={`alert alert-${msg.kind === 'ok' ? 'ok' : 'error'}`} role="status">{msg.text}</div>}
@@ -171,6 +297,8 @@ export default function RoundDetail() {
           <button className={`btn ${event.locked ? '' : 'btn-danger'}`} onClick={toggleLock}>{event.locked ? 'Reopen scoring' : 'Close scoring'}</button>
         </div>
       </section>
+
+      <ProblemStatements key={`ps-${event.id}-${pss.length}`} event={event} pss={pss} teams={teams} sdgs={ref.sdgs} act={act} reload={reload} />
 
       <section className="panel">
         <h2>Team access</h2>
@@ -209,7 +337,7 @@ export default function RoundDetail() {
       {event.kind === 'inter' && (
         <section className="panel">
           <h2>Finalists</h2>
-          <p>Pull the current top {ref.settings.shortlist_count} of each section round into this round. Do this once both section rounds are fully scored; it can't be repeated once finalists have marks or SDG ratings.</p>
+          <p>Pull the current top {ref.settings.shortlist_count} of {sources.map((s) => s.name).join(' and ') || 'each feeding round'} into this round. Do this once {sources.length > 1 ? 'both of those rounds are' : 'that round is'} fully scored; it can't be repeated once finalists have marks or SDG ratings.</p>
           <button className="btn btn-primary" onClick={pull}>Pull shortlisted teams</button>
         </section>
       )}
@@ -237,7 +365,7 @@ export default function RoundDetail() {
             <table className="table">
               <thead>
                 <tr><th>Team</th>{evaluators.map((p) => <th key={p.id} className="c">{p.full_name || p.email}</th>)}
-                  <th className="r">Total</th><th className="r">Score %</th><th className="r">Rank</th><th>Status</th></tr>
+                  <th className="r">Total</th><th className="r">Score %</th><th className="r">Rank</th><th>{event.shortlists ? 'Status' : 'Place'}</th></tr>
               </thead>
               <tbody>
                 {teams.map((t) => {
@@ -253,7 +381,7 @@ export default function RoundDetail() {
                       <td className="r">{r?.total != null ? num(r.total) : '—'}</td>
                       <td className="r">{pct(r?.pct)}</td>
                       <td className="r">{r?.rank ?? '—'}</td>
-                      <td>{r?.status === 'Shortlisted' ? <span className="tag tag-open">Shortlisted</span> : (r?.status ?? '')}</td>
+                      <td><StatusTag status={r?.status} /></td>
                     </tr>
                   )
                 })}
@@ -275,7 +403,7 @@ export default function RoundDetail() {
           <table className="table table-edit">
             <thead><tr><th>Team ID</th><th>Team name</th><th>Members</th><th>Primary SDG</th><th>Secondary SDG</th><th>SDG targets</th><th>Problem statement</th><th /></tr></thead>
             <tbody>
-              {teams.map((t) => <TeamRow key={t.id} team={t} sdgs={ref.sdgs} origin={originName(t)} autoCode={event.kind === 'intra'} onSaved={reload} onDeleted={reload} />)}
+              {teams.map((t) => <TeamRow key={t.id} team={t} sdgs={ref.sdgs} origin={originName(t)} autoCode={event.kind === 'intra'} pss={pss} onSaved={reload} onDeleted={reload} />)}
               <tr className="row-new">
                 <td>{event.kind === 'intra'
                   ? <span className="muted small">Auto</span>
