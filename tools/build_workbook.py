@@ -143,6 +143,7 @@ EVENTS = [  # sheet, title, kind, source sheets
  ("5A Intra", "5th Semester Section A — Intra-Class Hackathon", "intra", "5th Sem - A"),
  ("5B Intra", "5th Semester Section B — Intra-Class Hackathon", "intra", "5th Sem - B"),
  ("5 Inter", "5th Semester — Inter-Section Hackathon (Finals)", "inter", ("5A Intra", "5B Intra", "5th Sem - A", "5th Sem - B")),
+ ("Dept Final", "Department-Level Final — Intra-Department Hackathon", "inter", ("3 Inter", "5 Inter", "3rd Sem", "5th Sem")),
 ]
 ws_lst = None
 
@@ -288,6 +289,34 @@ for i, s in enumerate(SDGS): calc(ws_lst.cell(2 + i, 1), s, align=LEFT)
 ws_lst.column_dimensions["A"].width = 52
 wb.defined_names["SDGList"] = DefinedName("SDGList", attr_text="'SDG List'!$A$2:$A$18")
 
+# ---------------------------------------------------------------- Problem statements (department final)
+PS_FIRST, PS_N = 5, 20
+PS_SHEET = "Problem Statements"
+RANK_ONLY = {"Dept Final"}            # rounds ranked by score, no shortlist
+ws_ps = wb.create_sheet(PS_SHEET)
+ws_ps.sheet_properties.tabColor = "375623"
+ws_ps.merge_cells("A1:G1"); hdr(ws_ps["A1"], "Problem statements for the department-level final", size=13)
+ws_ps.merge_cells("A2:G3")
+ws_ps["A2"] = ("Coordinator: enter up to 20 problem statements and the SDG(s) each is expected to address. "
+               "On the 'Dept Final' sheet, pick each team's statement in the Problem Statement column; "
+               "the team's Primary and Secondary SDG then come from the statement, so SDG ratings and attainment follow it.")
+ws_ps["A2"].font = font(italic=True, size=9); ws_ps["A2"].alignment = LEFT
+for i, t in enumerate(["Code", "Title", "Description", "Expected primary SDG", "Expected secondary SDG (optional)", "SDG targets", "Label (used in the dropdown)"]):
+    hdr(ws_ps.cell(4, 1 + i), t)
+for i in range(PS_N):
+    r = PS_FIRST + i
+    calc(ws_ps.cell(r, 1), f"PS{i+1:02d}", bold=True)
+    for c in range(2, 7): inp(ws_ps.cell(r, c), align=LEFT)
+    calc(ws_ps.cell(r, 7), f'=IF(B{r}="","",A{r}&" — "&B{r})', align=LEFT, bg=AVGF)
+    ws_ps.row_dimensions[r].height = 30
+PS_LAST = PS_FIRST + PS_N - 1
+dvp = DataValidation(type="list", formula1="SDGList", allow_blank=True, showErrorMessage=True, errorTitle="Pick an SDG", error="Select an SDG from the list.")
+ws_ps.add_data_validation(dvp); dvp.add(f"D{PS_FIRST}:E{PS_LAST}")
+for c, w in zip("ABCDEFG", [8, 34, 48, 30, 30, 14, 40]): ws_ps.column_dimensions[c].width = w
+ws_ps.freeze_panes = "B5"
+wb.defined_names["PSList"] = DefinedName("PSList", attr_text=f"'{PS_SHEET}'!$G${PS_FIRST}:$G${PS_LAST}")
+PS_RNG = lambda col: f"'{PS_SHEET}'!${col}${PS_FIRST}:${col}${PS_LAST}"
+
 # ---------------------------------------------------------------- event sheets
 from openpyxl.chart import Series
 C_TD = 8                              # team-detail columns A..H
@@ -352,7 +381,7 @@ def event_sheet(sheet, title, kind, src):
         for off, lab in ((NC, "Primary SDG strength"), (NC + 1, "Secondary SDG strength")):
             hdr(ws.cell(5, cs + off), lab, bg=SDGF, fg="000000", size=8)
             hdr(ws.cell(6, cs + off), "0–3", bg=SDGF, fg="000000", bold=True, size=9)
-    for c, t in [(C_TOT, "Total"), (C_PCT, "Score %"), (C_RANK, "Rank"), (C_STAT, "Status")]:
+    for c, t in [(C_TOT, "Total"), (C_PCT, "Score %"), (C_RANK, "Rank"), (C_STAT, "Place" if sheet in RANK_ONLY else "Status")]:
         hdr(ws.cell(5, c), t, bg=RESF, fg="000000")
     hdr(ws.cell(6, C_TOT), f"={RUB_TOTAL}", bg=RESF, fg="000000")
     for c in (C_PCT, C_RANK, C_STAT): hdr(ws.cell(6, c), "", bg=RESF)
@@ -370,10 +399,17 @@ def event_sheet(sheet, title, kind, src):
         else:
             sA, sB, labA, labB = src
             ss, lab, rk = (sA, labA, i + 1) if i < 5 else (sB, labB, i - 4)
-            inp(ws.cell(r, 2), lab)
-            for c in range(3, 9):
+            src_intra = info[ss]["kind"] == "intra"
+            src_last = FIRST + info[ss]["n"] - 1
+            if src_intra: inp(ws.cell(r, 2), lab)
+            for c in range(3 if src_intra else 2, 9):
                 colL = L(c)
-                f = f"=IFERROR(INDEX('{ss}'!${colL}${FIRST}:${colL}${FIRST+INTRA_ROWS-1},MATCH({rk},'{ss}'!${L(C_RANK)}${FIRST}:${L(C_RANK)}${FIRST+INTRA_ROWS-1},0))&\"\",\"\")"
+                f = f"=IFERROR(INDEX('{ss}'!${colL}${FIRST}:${colL}${src_last},MATCH({rk},'{ss}'!${L(C_RANK)}${FIRST}:${L(C_RANK)}${src_last},0))&\"\",\"\")"
+                if sheet in RANK_ONLY and c == 8:
+                    f = None                     # team's chosen problem statement (dropdown)
+                elif sheet in RANK_ONLY and c in (6, 7):
+                    psc = "D" if c == 6 else "E"
+                    f = (f'=IF($H{r}<>"",IFERROR(INDEX({PS_RNG(psc)},MATCH($H{r},{PS_RNG("G")},0))&"",""),{f[1:]})')
                 inp(ws.cell(r, c), f, align=LEFT if c in (4, 5, 8) else CENTER)
         for cs in C_E:
             for k in range(NC + 2): inp(ws.cell(r, cs + k))
@@ -391,7 +427,11 @@ def event_sheet(sheet, title, kind, src):
         K = L(C_KEY)
         calc(ws.cell(r, C_KEY), f'=IF({T}="","",{T}+N({L(C_AVG+3)}{r})/10000)', "0.0000")
         calc(ws.cell(r, C_RANK), f'=IF({K}{r}="","",COUNTIF(${K}${FIRST}:${K}${last},">"&{K}{r})+COUNTIF(${K}${FIRST}:{K}{r},{K}{r}))', "0", RESF, True)
-        calc(ws.cell(r, C_STAT), f'=IF({L(C_RANK)}{r}="","",IF({L(C_RANK)}{r}<={S_SL},"Shortlisted","Not shortlisted"))', None, RESF)
+        RKc = f"{L(C_RANK)}{r}"
+        if sheet in RANK_ONLY:
+            calc(ws.cell(r, C_STAT), f'=IF({RKc}="","",{RKc}&IF(AND(MOD({RKc},100)>=11,MOD({RKc},100)<=13),"th",CHOOSE(MOD({RKc},10)+1,"th","st","nd","rd","th","th","th","th","th","th"))&" place")', None, RESF, True)
+        else:
+            calc(ws.cell(r, C_STAT), f'=IF({RKc}="","",IF({RKc}<={S_SL},"Shortlisted","Not shortlisted"))', None, RESF)
         for j in range(NO):
             mc = L(4 + j)
             terms = "+".join(f"{L(C_AVG+k)}{r}/{L(C_AVG+k)}$6*Mapping!${mc}${MR0+k}" for k in range(NC))
@@ -415,6 +455,11 @@ def event_sheet(sheet, title, kind, src):
     ws.add_data_validation(dvl); dvl.add(f"F{FIRST}:G{last}")
     stat = f"{L(C_STAT)}{FIRST}:{L(C_STAT)}{last}"
     ws.conditional_formatting.add(stat, CellIsRule(operator="equal", formula=['"Shortlisted"'], fill=fill("C6EFCE"), font=Font(name=F, color="006100", bold=True)))
+    if sheet in RANK_ONLY:
+        ws.conditional_formatting.add(stat, FormulaRule(formula=[f'AND(ISNUMBER(${L(C_RANK)}{FIRST}),${L(C_RANK)}{FIRST}<=3)'], fill=fill("FFE699"), font=Font(name=F, color="7F6000", bold=True)))
+        dvh = DataValidation(type="list", formula1="PSList", allow_blank=True, showErrorMessage=True,
+                             errorTitle="Pick a problem statement", error="Choose one of the problem statements listed on the 'Problem Statements' sheet.")
+        ws.add_data_validation(dvh); dvh.add(f"H{FIRST}:H{last}")
     # grey out secondary-strength inputs when the team has no (distinct) secondary SDG
     for cs in C_E:
         rng = f"{L(cs+NC+1)}{FIRST}:{L(cs+NC+1)}{last}"
@@ -522,6 +567,7 @@ def datalabels(chart):
 
 for ev in EVENTS: event_sheet(*ev)
 wb.move_sheet("SDG List", offset=len(wb.sheetnames))
+wb.move_sheet(PS_SHEET, offset=wb.sheetnames.index("Mapping") + 1 - wb.sheetnames.index(PS_SHEET))
 
 # ---------------------------------------------------------------- Dashboard
 d = ws_dash
@@ -532,7 +578,9 @@ d.merge_cells(start_row=2, start_column=1, end_row=2, end_column=LASTC)
 d["A2"] = f'={S_INST}&" | Dept. of "&{S_DEPT}&" | AY "&{S_AY}&" | PO/PSO target per team: "&TEXT({S_TGT},"0%")&" | SDG reached at strength ≥ "&{S_SDGT}'
 d["A2"].font = font(italic=True, size=10); d["A2"].alignment = CENTER
 EV_LABEL = {"3A Intra": "3rd Sem A — Intra", "3B Intra": "3rd Sem B — Intra", "3 Inter": "3rd Sem — Inter-Section",
-            "5A Intra": "5th Sem A — Intra", "5B Intra": "5th Sem B — Intra", "5 Inter": "5th Sem — Inter-Section"}
+            "5A Intra": "5th Sem A — Intra", "5B Intra": "5th Sem B — Intra", "5 Inter": "5th Sem — Inter-Section",
+            "Dept Final": "Department Final"}
+NE = len(EVENTS)
 
 def dash_table(r0, title, srow_off, fmt):
     d.merge_cells(start_row=r0, start_column=1, end_row=r0, end_column=LASTC)
@@ -545,10 +593,11 @@ def dash_table(r0, title, srow_off, fmt):
         calc(d.cell(r, 2), f"='{sh}'!E{I['s']+5}", "0")
         for j in range(NO):
             calc(d.cell(r, 3 + j), f"='{sh}'!{L(C_OUT+j)}{I['s']+srow_off}", fmt)
-    return r0 + 2, r0 + 7
+    return r0 + 2, r0 + 1 + NE
+T_STEP = NE + 4
 t1a, t1b = dash_table(4, "Table 1 — PO / PSO average attainment (%) by event", 2, "0.0%")
-t2a, t2b = dash_table(14, "Table 2 — PO / PSO: % of teams at/above target by event", 3, "0.0%")
-t3a, t3b = dash_table(24, "Table 3 — PO / PSO attainment level (0–3) by event", 4, "0")
+t2a, t2b = dash_table(4 + T_STEP, "Table 2 — PO / PSO: % of teams at/above target by event", 3, "0.0%")
+t3a, t3b = dash_table(4 + 2 * T_STEP, "Table 3 — PO / PSO attainment level (0–3) by event", 4, "0")
 for (a, b) in [(t1a, t1b), (t2a, t2b)]:
     r = b + 1
     calc(d.cell(r, 1), "Overall (weighted by teams)", bold=True, bg=RESF, align=LEFT)
@@ -569,7 +618,7 @@ for v, colr in [(3, "C6EFCE"), (2, "FFEB9C"), (1, "FCE4D6"), (0, "FFC7CE")]:
 OVR_AVG, OVR_PCT, OVR_LVL = t1b + 1, t2b + 1, t3b + 1
 
 # Table 4 — SDG attainment by event
-p0 = 34
+p0 = t3b + 4
 d.merge_cells(start_row=p0, start_column=1, end_row=p0, end_column=5)
 hdr(d.cell(p0, 1), "Table 4 — SDG attainment by event (contribution strength, 0–3)", bg="375623")
 for i, t in enumerate(["Event", "Team–SDG pairs claimed", "Pairs rated", "Avg contribution strength (0–3)", "% rated at/above target strength"]):
@@ -582,7 +631,7 @@ for i, (sh, *_x) in enumerate(EVENTS):
     calc(d.cell(r, 3), f"='{sh}'!E{s0+8}", "0")
     calc(d.cell(r, 4), f"='{sh}'!E{s0+6}", "0.00", bold=True)
     calc(d.cell(r, 5), f"='{sh}'!E{s0+7}", "0.0%")
-pa, pb = p0 + 2, p0 + 7
+pa, pb = p0 + 2, p0 + 1 + NE
 r = pb + 1
 calc(d.cell(r, 1), "Overall (all rated pairs)", bold=True, bg=RESF, align=LEFT)
 calc(d.cell(r, 2), f"=SUM(B{pa}:B{pb})", "0", bold=True, bg=RESF)
@@ -592,8 +641,8 @@ calc(d.cell(r, 5), f'=IFERROR(SUMPRODUCT(E{pa}:E{pb},C{pa}:C{pb})/C{r},"")', "0.
 OVR_SDG = r
 
 # Table 5 — SDG goal-wise, all events
-q0 = 45
-d.merge_cells(start_row=q0, start_column=1, end_row=q0, end_column=11)
+q0 = pb + 4
+d.merge_cells(start_row=q0, start_column=1, end_row=q0, end_column=5 + NE)
 hdr(d.cell(q0, 1), "Table 5 — SDG goal-wise attainment, all events (contribution strength, 0–3)", bg="375623")
 hs = ["Sustainable Development Goal"] + [f"{EV_LABEL[e[0]]}: solutions" for e in EVENTS] + ["Total solutions", "Solutions rated", "Avg contribution strength (0–3)", "% rated at/above target strength"]
 for i, t in enumerate(hs): hdr(d.cell(q0 + 1, 1 + i), t, bg=SDGF, fg="000000")
@@ -603,26 +652,29 @@ for i, g in enumerate(SDGS):
     calc(d.cell(r, 1), f"='SDG List'!A{2+i}", align=LEFT)
     for e, (sh, *_x) in enumerate(EVENTS):
         calc(d.cell(r, 2 + e), f"='{sh}'!E{info[sh]['g0']+1+i}", "0")
-    calc(d.cell(r, 8), f"=SUM(B{r}:G{r})", "0", bold=True)
+    calc(d.cell(r, 2 + NE), f"=SUM(B{r}:{L(1 + NE)}{r})", "0", bold=True)
     rated = "+".join(f"'{sh}'!F{info[sh]['g0']+1+i}" for sh, *_x in EVENTS)
     wsum = "+".join(f"N('{sh}'!G{info[sh]['g0']+1+i})*'{sh}'!F{info[sh]['g0']+1+i}" for sh, *_x in EVENTS)
     psum = "+".join(f"N('{sh}'!H{info[sh]['g0']+1+i})*'{sh}'!F{info[sh]['g0']+1+i}" for sh, *_x in EVENTS)
-    calc(d.cell(r, 9), f"={rated}", "0")
-    calc(d.cell(r, 10), f'=IFERROR(({wsum})/I{r},"")', "0.00", bold=True)
-    calc(d.cell(r, 11), f'=IFERROR(({psum})/I{r},"")', "0.0%")
+    RC = L(3 + NE)
+    calc(d.cell(r, 3 + NE), f"={rated}", "0")
+    calc(d.cell(r, 4 + NE), f'=IFERROR(({wsum})/{RC}{r},"")', "0.00", bold=True)
+    calc(d.cell(r, 5 + NE), f'=IFERROR(({psum})/{RC}{r},"")', "0.0%")
 qL = q0 + 1 + len(SDGS)
 calc(d.cell(qL + 1, 1), "Total", bold=True, bg=RESF, align=LEFT)
-for c in range(2, 10): calc(d.cell(qL + 1, c), f"=SUM({L(c)}{q0+2}:{L(c)}{qL})", "0", bold=True, bg=RESF)
-st = f"J{q0+2}:J{qL}"
-d.conditional_formatting.add(st, FormulaRule(formula=[f"AND(ISNUMBER(J{q0+2}),J{q0+2}>={S_SDGT})"], fill=fill("C6EFCE")))
-d.conditional_formatting.add(st, FormulaRule(formula=[f"AND(ISNUMBER(J{q0+2}),J{q0+2}<{S_SDGT})"], fill=fill("FCE4D6")))
+for c in range(2, 4 + NE): calc(d.cell(qL + 1, c), f"=SUM({L(c)}{q0+2}:{L(c)}{qL})", "0", bold=True, bg=RESF)
+AC = L(4 + NE)
+st = f"{AC}{q0+2}:{AC}{qL}"
+d.conditional_formatting.add(st, FormulaRule(formula=[f"AND(ISNUMBER({AC}{q0+2}),{AC}{q0+2}>={S_SDGT})"], fill=fill("C6EFCE")))
+d.conditional_formatting.add(st, FormulaRule(formula=[f"AND(ISNUMBER({AC}{q0+2}),{AC}{q0+2}<{S_SDGT})"], fill=fill("FCE4D6")))
 
 # Table 6 — shortlisted teams
 k0 = qL + 4
-d.merge_cells(start_row=k0, start_column=1, end_row=k0, end_column=13)
+SL_EVENTS = [ev for ev in EVENTS if ev[0] not in RANK_ONLY]
+d.merge_cells(start_row=k0, start_column=1, end_row=k0, end_column=1 + 2 * len(SL_EVENTS))
 hdr(d.cell(k0, 1), "Table 6 — Shortlisted teams (auto-ranked; ties broken by Technical Implementation score)")
 hdr(d.cell(k0 + 1, 1), "Rank", bg=RESF, fg="000000")
-for e, (sh, *_x) in enumerate(EVENTS):
+for e, (sh, *_x) in enumerate(SL_EVENTS):
     c = 2 + 2 * e
     d.merge_cells(start_row=k0 + 1, start_column=c, end_row=k0 + 1, end_column=c + 1)
     hdr(d.cell(k0 + 1, c), EV_LABEL[sh], bg=RESF, fg="000000"); d.cell(k0 + 1, c + 1).border = BOX
@@ -631,11 +683,30 @@ hdr(d.cell(k0 + 2, 1), "", bg=AVGF)
 for rk in range(1, 6):
     r = k0 + 2 + rk
     calc(d.cell(r, 1), rk, bold=True)
-    for e, (sh, *_x) in enumerate(EVENTS):
+    for e, (sh, *_x) in enumerate(SL_EVENTS):
         I = info[sh]; c = 2 + 2 * e
         RK = f"'{sh}'!${L(C_RANK)}${FIRST}:${L(C_RANK)}${I['last']}"
         calc(d.cell(r, c), f"=IFERROR(INDEX('{sh}'!$D${FIRST}:$D${I['last']},MATCH($A{r},{RK},0))&\"\",\"\")", align=LEFT)
         calc(d.cell(r, c + 1), f"=IFERROR(INDEX('{sh}'!${L(C_TOT)}${FIRST}:${L(C_TOT)}${I['last']},MATCH($A{r},{RK},0)),\"\")", "0.0")
+
+# Table 7 — department final ranking
+for sh in RANK_ONLY:
+    I = info[sh]
+    k7 = k0 + 2 + 5 + 3
+    d.merge_cells(start_row=k7, start_column=1, end_row=k7, end_column=7)
+    hdr(d.cell(k7, 1), f"Table 7 — {EV_LABEL[sh]}: final ranking (by total score; no shortlist)", bg="7F6000")
+    for i, t in enumerate(["Rank", "Team ID", "Team", "Section", "Problem statement", "Total", "Place"]):
+        hdr(d.cell(k7 + 1, 1 + i), t, bg="FFE699", fg="000000")
+    RK = f"'{sh}'!${L(C_RANK)}${FIRST}:${L(C_RANK)}${I['last']}"
+    for rk in range(1, I["n"] + 1):
+        r = k7 + 1 + rk
+        calc(d.cell(r, 1), rk, bold=True)
+        for j, col in enumerate(["C", "D", "B", "H"]):
+            calc(d.cell(r, 2 + j), f"=IFERROR(INDEX('{sh}'!${col}${FIRST}:${col}${I['last']},MATCH($A{r},{RK},0))&\"\",\"\")", align=LEFT)
+        calc(d.cell(r, 6), f"=IFERROR(INDEX('{sh}'!${L(C_TOT)}${FIRST}:${L(C_TOT)}${I['last']},MATCH($A{r},{RK},0)),\"\")", "0.0", bold=True)
+        calc(d.cell(r, 7), f"=IFERROR(INDEX('{sh}'!${L(C_STAT)}${FIRST}:${L(C_STAT)}${I['last']},MATCH($A{r},{RK},0))&\"\",\"\")")
+        if rk <= 3:
+            for c in range(1, 8): d.cell(r, c).fill = fill("FFF2CC")
 
 d.column_dimensions["A"].width = 30
 for c in range(2, LASTC + 1): d.column_dimensions[L(c)].width = 11
@@ -655,13 +726,13 @@ c2.set_categories(cats); c2.y_axis.scaling.min = 0; c2.y_axis.scaling.max = 3; c
 c2.legend = None; c2.width, c2.height = 22, 10; unhide_axes(c2); datalabels(c2)
 d.add_chart(c2, "R23")
 c3 = BarChart(); c3.type = "col"; c3.title = "PO / PSO average attainment by event"
-for i in range(6):
+for i in range(NE):
     c3.series.append(Series(Reference(d, min_col=3, max_col=LASTC, min_row=t1a + i), title=EV_LABEL[EVENTS[i][0]]))
 c3.set_categories(cats); c3.y_axis.scaling.min = 0; c3.y_axis.scaling.max = 1; c3.y_axis.number_format = "0%"
 c3.legend.position = "b"; c3.width, c3.height = 22, 10; unhide_axes(c3)
 d.add_chart(c3, "AF23")
 c4 = RadarChart(); c4.type = "marker"; c4.title = "PO / PSO profile by event (avg %)"
-for i in range(6):
+for i in range(NE):
     c4.series.append(Series(Reference(d, min_col=3, max_col=LASTC, min_row=t1a + i), title=EV_LABEL[EVENTS[i][0]]))
 c4.set_categories(cats); c4.y_axis.scaling.min = 0; c4.y_axis.scaling.max = 1
 c4.y_axis.number_format = "0%"; c4.width, c4.height = 22, 10; c4.legend.position = "b"
@@ -674,13 +745,13 @@ c7.y_axis.scaling.min = 0; c7.y_axis.scaling.max = 3; c7.y_axis.majorUnit = 1
 c7.legend = None; c7.width, c7.height = 22, 10; unhide_axes(c7); datalabels(c7)
 d.add_chart(c7, "R43")
 c6 = BarChart(); c6.type = "bar"; c6.title = "SDG goal-wise average contribution strength (0–3)"
-c6.series.append(Series(Reference(d, min_col=10, min_row=q0 + 2, max_row=qL), title="Avg strength"))
+c6.series.append(Series(Reference(d, min_col=4 + NE, min_row=q0 + 2, max_row=qL), title="Avg strength"))
 c6.set_categories(Reference(d, min_col=1, min_row=q0 + 2, max_row=qL))
 c6.x_axis.scaling.orientation = "maxMin"; c6.y_axis.scaling.min = 0; c6.y_axis.scaling.max = 3; c6.y_axis.majorUnit = 1
 c6.legend = None; c6.width, c6.height = 22, 13; unhide_axes(c6)
 d.add_chart(c6, "AF43")
 c5 = BarChart(); c5.type = "bar"; c5.title = "SDG coverage (solutions per goal)"; c5.grouping = "stacked"; c5.overlap = 100
-for e in range(6):
+for e in range(NE):
     c5.series.append(Series(Reference(d, min_col=2 + e, min_row=q0 + 2, max_row=qL), title=EV_LABEL[EVENTS[e][0]]))
 c5.set_categories(Reference(d, min_col=1, min_row=q0 + 2, max_row=qL))
 c5.x_axis.scaling.orientation = "maxMin"; c5.legend.position = "b"; c5.width, c5.height = 22, 13; unhide_axes(c5)
@@ -696,6 +767,8 @@ lines = [
  ("Round 1", "5th Sem Section A and Section B intra-class hackathons → top 5 teams from each section shortlisted (sheets '5A Intra', '5B Intra')."),
  ("Round 2", "3rd Sem inter-section hackathon: the 10 shortlisted teams are pulled in automatically → top 5 shortlisted (sheet '3 Inter')."),
  ("Round 2", "5th Sem inter-section hackathon: the 10 shortlisted teams are pulled in automatically → top 5 shortlisted (sheet '5 Inter')."),
+ ("Round 3", "Department-level final (intra-department hackathon): the top 5 of '3 Inter' and the top 5 of '5 Inter' are pulled in automatically (sheet 'Dept Final'). There is no shortlist: all 10 teams are ranked by total score (1st place, 2nd place, …)."),
+ ("Problem statements", "For the department final, list the problem statements and their expected SDGs on the 'Problem Statements' sheet, then pick each team's statement in the Problem Statement column of 'Dept Final'. The team's SDGs in that round follow its statement."),
  ("Who enters what", None),
  ("Coordinator (once)", "'Mapping' sheet: title, department, PO/PSO target %, attainment thresholds, SDG target strength, and (optionally) the rubric → PO/PSO correlation matrix. 'Rubric' sheet: criteria, max marks, descriptors."),
  ("Coordinator (per event)", "In each event sheet: date, venue, evaluator names, and team details (Team ID, name, members, Primary SDG and optional Secondary SDG from the dropdown, problem statement). Intra sheets hold up to " + str(INTRA_ROWS) + " teams."),
@@ -713,7 +786,7 @@ lines = [
  ("Solution strength", "Average of the evaluators' ratings for that team and SDG (0–3)."),
  ("Goal-wise attainment", "For each of the 17 SDGs: average strength of all solutions addressing it (primary or secondary), plus the % of rated solutions at or above the target strength (default 2, Medium)."),
  ("Event SDG attainment", "Average strength over every rated team–SDG pair in the event; the Dashboard pools all events weighted by the number of rated pairs."),
- ("Ranking & ties", "Rank is by total rubric score only; SDG ratings do not change it. Ties are broken by the Technical Implementation (C4) score, then by row order. Inter-section sheets pull rank 1–5 of each section; you can overtype a team cell there if a team is replaced."),
+ ("Ranking & ties", "Rank is by total rubric score only; SDG ratings do not change it. Ties are broken by the Technical Implementation (C4) score, then by row order. Inter-section sheets pull rank 1–5 of each section, and 'Dept Final' pulls rank 1–5 of each semester's inter-section sheet; you can overtype a team cell there if a team is replaced."),
  ("Example row (format only)", None),
 ]
 r = 3
@@ -764,6 +837,18 @@ if DEMO:
                     ws.cell(r, cs + k).value = round(max(0, min(mx, mx * random.gauss(skill, 0.08))) * 2) / 2
                 ws.cell(r, cs + NC).value = max(0, min(3, base + random.choice([-1, 0, 0, 1])))
                 if has_sec: ws.cell(r, cs + NC + 1).value = max(0, min(3, base - 1 + random.choice([-1, 0, 0, 1])))
+if DEMO:
+    PS_DEMO = [("Smart water metering", "Detect leaks and wastage in campus water lines.", SDGS[5], SDGS[11], "6.4, 12.2"),
+               ("Clinic queue predictor", "Cut waiting times at primary health centres.", SDGS[2], None, "3.8"),
+               ("Rural solar micro-grid monitor", "Keep village micro-grids running with predictive maintenance.", SDGS[6], SDGS[12], "7.1, 13.1"),
+               ("Inclusive learning assistant", "Support students with disabilities in classrooms.", SDGS[3], SDGS[9], "4.5")]
+    for i, (t, dsc, p1, p2, tg) in enumerate(PS_DEMO):
+        r = PS_FIRST + i
+        ws_ps.cell(r, 2).value, ws_ps.cell(r, 3).value, ws_ps.cell(r, 4).value, ws_ps.cell(r, 5).value, ws_ps.cell(r, 6).value = t, dsc, p1, p2, tg
+    dws = wb["Dept Final"]
+    for i in range(10):
+        if i == 9: continue          # one team still to choose
+        dws.cell(FIRST + i, 8).value = f"PS{(i % 4) + 1:02d} — {PS_DEMO[i % 4][0]}"
 wb.calculation.fullCalcOnLoad = True
 wb.active = 0
 wb.save(OUT)
