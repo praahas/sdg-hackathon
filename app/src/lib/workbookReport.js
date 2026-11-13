@@ -138,8 +138,9 @@ export async function downloadWorkbookReport() {
     ru.set(`B${r}`, c.name); ru.set(`C${r}`, c.short_name); ru.set(`D${r}`, num(c.max_marks))
     ru.set(`E${r}`, c.excellent); ru.set(`F${r}`, c.good); ru.set(`G${r}`, c.satisfactory); ru.set(`H${r}`, c.needs_improvement)
   })
+  // The workbook breaks tied totals on the same criterion the app uses.
   const tb = ref.criteria.findIndex((c) => c.is_tiebreak)
-  if (tb !== -1 && tb !== 3) warnings.push(`The app breaks ties on "${ref.criteria[tb].short_name}", but the workbook always uses criterion 4. Ranks may differ only where totals are tied.`)
+  m.set('C13', tb === -1 ? 4 : tb + 1)
 
   // SDG names, written in the same form the team cells use
   const sl = await sheet('SDG List')
