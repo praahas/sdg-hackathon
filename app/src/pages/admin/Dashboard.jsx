@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  Bar, BarChart, CartesianGrid, Cell, Legend, PolarAngleAxis, PolarGrid, PolarRadiusAxis,
+  Bar, BarChart, CartesianGrid, Cell, LabelList, Legend, PolarAngleAxis, PolarGrid, PolarRadiusAxis,
   Radar, RadarChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts'
 import { supabase, q } from '../../lib/supabase'
@@ -10,6 +10,7 @@ import { loadReference } from '../../lib/reference'
 import { num, pct } from '../../lib/format'
 import { ErrorBox, LevelChip, Loading, SdgChip, StatusTag } from '../../components/ui'
 import { fmtStrength, strengthLabel } from '../../lib/sdgStrength'
+import { sdgCoverage } from '../../lib/sdgCoverage'
 
 const INK = '#16323F', TEAL = '#0F7A6E', SAND = '#C89B3C'
 const ROUND_COLORS = ['#0F7A6E', '#3E8FB0', '#16323F', '#C89B3C', '#B5563A', '#6E5A9E']
@@ -18,7 +19,7 @@ const pctTick = (v) => `${Math.round(v * 100)}%`
 const tipPct = (v) => (typeof v === 'number' ? pct(v) : v)
 
 async function fetchAll() {
-  const [ref, events, evOut, overall, results, teamOut, teamCrit, sdgEvent, sdgOverall, evSdg, allSdg, teamSdg, pendingEvals] = await Promise.all([
+  const [ref, events, evOut, overall, results, teamOut, teamCrit, sdgEvent, sdgOverall, evSdg, allSdg, teamSdg, pendingEvals, allTeams] = await Promise.all([
     loadReference(),
     q(supabase.from('events').select('*').order('sort')),
     q(supabase.from('v_event_outcome').select('*')),
@@ -32,8 +33,9 @@ async function fetchAll() {
     q(supabase.from('v_overall_sdg').select('*')),
     q(supabase.from('v_team_sdg_strength').select('*')),
     q(supabase.from('profiles').select('id').eq('role', 'pending')),
+    q(supabase.from('teams').select('id, event_id, primary_sdg, secondary_sdg, origin_team_id')),
   ])
-  return { ref, events, evOut, overall, results, teamOut, teamCrit, sdgEvent, sdgOverall, evSdg, allSdg, teamSdg, pendingEvals }
+  return { ref, events, evOut, overall, results, teamOut, teamCrit, sdgEvent, sdgOverall, evSdg, allSdg, teamSdg, pendingEvals, allTeams }
 }
 
 export default function Dashboard() {
@@ -61,13 +63,14 @@ export default function Dashboard() {
       return row
     })
     const scoredEvents = events.filter((e) => evOut.some((r) => r.event_id === e.id && r.n_teams > 0))
-    return { eid, outcomeRows, teamRows, goals, radar, scoredEvents, sdgSummary }
+    const coverage = sdgCoverage(data.allTeams, ref.sdgs, eid)
+    return { eid, outcomeRows, teamRows, goals, radar, scoredEvents, sdgSummary, coverage }
   }, [data, sel])
 
   if (loading && !data) return <Loading label="Calculating attainment…" />
   if (error) return <ErrorBox error={error} onRetry={reload} />
   const { ref, events, evOut, teamOut, teamCrit, evSdg, teamSdg } = data
-  const { eid, outcomeRows, teamRows, goals, radar, scoredEvents, sdgSummary } = view
+  const { eid, outcomeRows, teamRows, goals, radar, scoredEvents, sdgSummary, coverage } = view
   const s = ref.settings
   const evName = (id) => events.find((e) => e.id === id)?.name
   const nTeams = teamRows.length
@@ -130,6 +133,68 @@ export default function Dashboard() {
             {reportNote.length > 0 && <ul className="warn-list">{reportNote.map((w) => <li key={w}>{w}</li>)}</ul>}
           </div>
         </div>
+      )}
+
+
+      {coverage.projects > 0 && (
+        <section className="panel">
+          <h2>SDG coverage <span className="muted">{eid ? evName(eid) : 'all rounds, each project counted once'}</span></h2>
+          <div className="sdg-summary">
+            <div className="big-stat"><b>{coverage.addressedCount}</b><span>/ 17</span><small>SDGs addressed by at least one project</small></div>
+            <div className="big-stat"><b>{coverage.projects}</b><small>projects with an SDG</small></div>
+            <div className="big-stat"><b>{17 - coverage.addressedCount}</b><small>SDGs not yet addressed</small></div>
+          </div>
+          <div className="dash-grid even">
+            <figure>
+              <figcaption>Projects mapped to each SDG (solid: primary SDG, light: secondary SDG)</figcaption>
+              <ResponsiveContainer width="100%" height={520}>
+                <BarChart data={coverage.rows.map((r) => ({ ...r, goal: `SDG ${r.sdg_id}` }))} layout="vertical" margin={{ left: 0, right: 30 }} barCategoryGap={4}>
+                  <CartesianGrid horizontal={false} stroke="#E1E7E5" />
+                  <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
+                  <YAxis type="category" dataKey="goal" width={62} tick={{ fontSize: 11 }} interval={0} />
+                  <Tooltip labelFormatter={(l, p) => (p?.[0] ? `${l}: ${p[0].payload.name}` : l)} />
+                  <Bar isAnimationActive={false} dataKey="primary" name="Primary SDG" stackId="a">
+                    {coverage.rows.map((r) => <Cell key={r.sdg_id} fill={r.color} />)}
+                  </Bar>
+                  <Bar isAnimationActive={false} dataKey="secondary" name="Secondary SDG" stackId="a">
+                    <LabelList dataKey="total" position="right" fontSize={11} fill="#33505C" formatter={(v) => (v ? v : '')} />
+                    {coverage.rows.map((r) => <Cell key={r.sdg_id} fill={r.color} fillOpacity={0.4} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </figure>
+            <div className="coverage-notes">
+              <h3>Not yet addressed {coverage.notAddressed.length > 0 && <span className="count-badge">{coverage.notAddressed.length}</span>}</h3>
+              {coverage.notAddressed.length === 0
+                ? <p className="muted">Every SDG is addressed by at least one project.</p>
+                : <div className="chip-wrap">{coverage.notAddressed.map((r) => <span key={r.sdg_id} className="sdg-chip sdg-gap" title={`SDG ${r.sdg_id}: ${r.name}`}><b>{r.sdg_id}</b><span>{r.name}</span></span>)}</div>}
+              {coverage.least.length > 0 && coverage.least[0].total < (coverage.most[0]?.total ?? 0) && (
+                <>
+                  <h3>Least addressed <span className="muted small">({coverage.least[0].total} project{coverage.least[0].total === 1 ? '' : 's'} each)</span></h3>
+                  <div className="chip-wrap">{coverage.least.map((r) => <SdgChip key={r.sdg_id} sdg={ref.sdgById[r.sdg_id]} />)}</div>
+                </>
+              )}
+              {coverage.most.length > 0 && (
+                <>
+                  <h3>Most addressed <span className="muted small">({coverage.most[0].total} projects each)</span></h3>
+                  <div className="chip-wrap">{coverage.most.map((r) => <SdgChip key={r.sdg_id} sdg={ref.sdgById[r.sdg_id]} />)}</div>
+                </>
+              )}
+              <table className="table coverage-table">
+                <thead><tr><th>SDG</th><th className="r">Primary</th><th className="r">Secondary</th><th className="r">Total</th></tr></thead>
+                <tbody>
+                  {coverage.rows.map((r) => (
+                    <tr key={r.sdg_id} className={r.total === 0 ? 'cov-zero' : ''}>
+                      <td><SdgChip sdg={ref.sdgById[r.sdg_id]} compact /> <span className="small">{r.name}</span></td>
+                      <td className="r">{r.primary || '—'}</td><td className="r">{r.secondary || '—'}</td><td className="r"><b>{r.total}</b></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p className="muted small">Counts every registered team, scored or not. Use the gaps to steer problem statements in future rounds.</p>
+            </div>
+          </div>
+        </section>
       )}
 
       {nTeams === 0 ? (
