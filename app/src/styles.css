@@ -449,3 +449,11 @@ figcaption { font-size: .86rem; font-weight: 650; color: var(--ink-2); margin-bo
 .ps-card-head b { color: var(--teal); margin-right: 4px; }
 .ps-desc { margin-top: 4px; }
 @media (max-width: 860px) { .ps-row { grid-template-columns: 1fr; } .ps-actions { flex-direction: row; } }
+/* ---------- SDG coverage ---------- */
+.coverage-notes h3 { margin: 4px 0 8px; }
+.coverage-notes h3:not(:first-child) { margin-top: 16px; }
+.chip-wrap { display: flex; flex-wrap: wrap; gap: 6px; }
+.sdg-gap { --sdg: #9aa5a8; background: #f1f3f3; color: var(--muted); border-left-style: dashed; }
+.coverage-table { margin-top: 16px; font-size: .84rem; }
+.coverage-table td, .coverage-table th { padding: 4px 6px; }
+.coverage-table tr.cov-zero td { color: var(--muted); background: #fafafa; }
