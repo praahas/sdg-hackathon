@@ -162,6 +162,7 @@ settings = [
  ("Attainment Level 1 if % of teams at/above target ≥", 0.50, "0%"),
  ("Teams shortlisted per round (fixed at 5 by event format)", 5, "0"),
  ("SDG contribution counts as reached at strength ≥ (1–3)", 2, "0"),
+ ("Tie-break criterion number (1–9) for equal totals", 4, "0"),
 ]
 for i, (lab, val, fmt) in enumerate(settings):
     r = 3 + i
@@ -177,6 +178,7 @@ for i, (lab, val, fmt) in enumerate(settings):
 S_TITLE, S_INST, S_DEPT, S_AY = "Mapping!$C$3", "Mapping!$C$4", "Mapping!$C$5", "Mapping!$C$6"
 S_TGT, S_L3, S_L2, S_L1, S_SL = "Mapping!$C$7", "Mapping!$C$8", "Mapping!$C$9", "Mapping!$C$10", "Mapping!$C$11"
 S_SDGT = "Mapping!$C$12"
+S_TB = "Mapping!$C$13"
 m["H3"] = "Yellow cells are editable. Correlation strength: 3 = High, 2 = Medium, 1 = Low, blank/0 = not mapped."
 m["H3"].font = font(italic=True, size=9); m.merge_cells("H3:Q4"); m["H3"].alignment = LEFT
 m["H5"] = ("Attainment method: each team's outcome attainment = Σ(criterion score ÷ criterion max × correlation) ÷ Σ correlation. "
@@ -259,6 +261,9 @@ RUB_TOTAL = f"Rubric!$D${4+NC}"
 dvt = DataValidation(type="whole", operator="between", formula1="1", formula2="3", showErrorMessage=True,
                      errorTitle="Invalid strength", error="Enter 1, 2 or 3.")
 m.add_data_validation(dvt); dvt.add("C12")
+dvtb = DataValidation(type="whole", operator="between", formula1="1", formula2=str(NC), showErrorMessage=True,
+                      errorTitle="Invalid criterion", error=f"Enter a criterion number from 1 to {NC} (see the Rubric sheet).")
+m.add_data_validation(dvtb); dvtb.add("C13")
 
 # SDG contribution-strength scale (rated separately from the rubric marks)
 STRENGTHS = [(3, "High", "Directly advances a named SDG target (e.g. 6.1), with a measurable indicator and a working solution that plausibly moves it."),
@@ -425,7 +430,7 @@ def event_sheet(sheet, title, kind, src):
         calc(ws.cell(r, C_TOT), f'=IF(COUNT({a0}{r}:{a1}{r})=0,"",SUM({a0}{r}:{a1}{r}))', "0.0", RESF, True)
         calc(ws.cell(r, C_PCT), f'=IF({T}="","",{T}/{L(C_TOT)}$6)', "0.0%", RESF)
         K = L(C_KEY)
-        calc(ws.cell(r, C_KEY), f'=IF({T}="","",{T}+N({L(C_AVG+3)}{r})/10000)', "0.0000")
+        calc(ws.cell(r, C_KEY), f'=IF({T}="","",{T}+N(INDEX({L(C_AVG)}{r}:{L(C_AVG+NC-1)}{r},{S_TB}))/10000)', "0.0000")
         calc(ws.cell(r, C_RANK), f'=IF({K}{r}="","",COUNTIF(${K}${FIRST}:${K}${last},">"&{K}{r})+COUNTIF(${K}${FIRST}:{K}{r},{K}{r}))', "0", RESF, True)
         RKc = f"{L(C_RANK)}{r}"
         if sheet in RANK_ONLY:
@@ -672,7 +677,7 @@ d.conditional_formatting.add(st, FormulaRule(formula=[f"AND(ISNUMBER({AC}{q0+2})
 k0 = qL + 4
 SL_EVENTS = [ev for ev in EVENTS if ev[0] not in RANK_ONLY]
 d.merge_cells(start_row=k0, start_column=1, end_row=k0, end_column=1 + 2 * len(SL_EVENTS))
-hdr(d.cell(k0, 1), "Table 6 — Shortlisted teams (auto-ranked; ties broken by Technical Implementation score)")
+hdr(d.cell(k0, 1), "Table 6 — Shortlisted teams (auto-ranked; ties broken by the tie-break criterion set on Mapping)")
 hdr(d.cell(k0 + 1, 1), "Rank", bg=RESF, fg="000000")
 for e, (sh, *_x) in enumerate(SL_EVENTS):
     c = 2 + 2 * e
@@ -786,7 +791,7 @@ lines = [
  ("Solution strength", "Average of the evaluators' ratings for that team and SDG (0–3)."),
  ("Goal-wise attainment", "For each of the 17 SDGs: average strength of all solutions addressing it (primary or secondary), plus the % of rated solutions at or above the target strength (default 2, Medium)."),
  ("Event SDG attainment", "Average strength over every rated team–SDG pair in the event; the Dashboard pools all events weighted by the number of rated pairs."),
- ("Ranking & ties", "Rank is by total rubric score only; SDG ratings do not change it. Ties are broken by the Technical Implementation (C4) score, then by row order. Inter-section sheets pull rank 1–5 of each section, and 'Dept Final' pulls rank 1–5 of each semester's inter-section sheet; you can overtype a team cell there if a team is replaced."),
+ ("Ranking & ties", "Rank is by total rubric score only; SDG ratings do not change it. Ties are broken by the tie-break criterion set on the 'Mapping' sheet (default criterion 4, Technical Implementation), then by row order. Inter-section sheets pull rank 1–5 of each section, and 'Dept Final' pulls rank 1–5 of each semester's inter-section sheet; you can overtype a team cell there if a team is replaced."),
  ("Example row (format only)", None),
 ]
 r = 3
