@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx'
+import { sdgCoverage } from './sdgCoverage'
 
 const r3 = (v) => (v === null || v === undefined ? '' : Math.round(Number(v) * 1000) / 1000)
 const p1 = (v) => (v === null || v === undefined ? '' : Math.round(Number(v) * 1000) / 10)
@@ -54,6 +55,13 @@ export function exportWorkbook({ ref, events, evOut, overall, results, teamOut, 
     'Avg strength (0–3)': r3(g.avg_strength), [`% rated ≥ ${s.sdg_strength_target}`]: p1(g.pct_at_target) })
   const sumRow = (x, label) => ({ Scope: label, Solutions: x?.solutions ?? 0, Rated: x?.rated ?? 0,
     'Avg strength (0–3)': r3(x?.avg_strength), [`% rated ≥ ${s.sdg_strength_target}`]: p1(x?.pct_at_target) })
+  if (teams?.length) {
+    const all = sdgCoverage(teams, ref.sdgs)
+    add('SDG coverage', all.rows.map((r) => ({
+      SDG: `SDG ${r.sdg_id}`, Goal: r.name, 'Projects (all rounds, counted once)': r.total, 'As primary SDG': r.primary, 'As secondary SDG': r.secondary,
+      ...Object.fromEntries(events.map((e) => [e.name, sdgCoverage(teams, ref.sdgs, e.id).rows.find((x) => x.sdg_id === r.sdg_id).total])),
+    })))
+  }
   add('SDG attainment', [...events.map((e) => sumRow(evSdg.find((x) => x.event_id === e.id), e.name)), sumRow(allSdg[0], 'All rounds')])
   add('SDG by goal', sdgOverall.map((g) => sdgRow(g)))
   add('SDG by goal and round', events.flatMap((e) => sdgEvent.filter((g) => g.event_id === e.id && g.solutions > 0).map((g) => sdgRow(g, { Round: e.name }))))
