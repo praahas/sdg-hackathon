@@ -2,7 +2,7 @@
 // with every input cell filled from the app. All totals, attainment, levels, SDG tables,
 // the Dashboard and the charts are the workbook's own formulas, recalculated by Excel on open.
 import JSZip from 'jszip'
-import { supabase, q } from './supabase'
+import { supabase, q, qAll } from './supabase'
 import { loadReference } from './reference'
 
 const NS = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main'
@@ -108,10 +108,10 @@ export async function downloadWorkbookReport() {
   const [ref, events, teams, scores, ratings, profiles, assignments] = await Promise.all([
     loadReference(),
     q(supabase.from('events').select('*').order('sort')),
-    q(supabase.from('teams').select('*')),
-    q(supabase.from('scores').select('team_id, criterion_id, evaluator_id, score')),
-    q(supabase.from('sdg_ratings').select('team_id, sdg_id, evaluator_id, strength')),
-    q(supabase.from('profiles').select('id, full_name, email')),
+    qAll(() => supabase.from('teams').select('*').order('id')),
+    qAll(() => supabase.from('scores').select('team_id, criterion_id, evaluator_id, score').order('team_id').order('criterion_id').order('evaluator_id')),
+    qAll(() => supabase.from('sdg_ratings').select('team_id, sdg_id, evaluator_id, strength').order('team_id').order('sdg_id').order('evaluator_id')),
+    qAll(() => supabase.from('profiles').select('id, full_name, email').order('id')),
     q(supabase.from('event_evaluators').select('*')),
   ])
   if (ref.criteria.length !== NC || ref.outcomes.length !== NO) {
