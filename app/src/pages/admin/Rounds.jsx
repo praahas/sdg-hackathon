@@ -1,6 +1,6 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
-import { supabase, q } from '../../lib/supabase'
+import { supabase, q, qAll } from '../../lib/supabase'
 import { useLoad } from '../../lib/useLoad'
 import { roundType } from '../../lib/format'
 import { ErrorBox, Loading } from '../../components/ui'
@@ -9,9 +9,9 @@ export default function Rounds() {
   const { data, error, loading, reload } = useLoad(async () => {
     const [events, teams, ee, results] = await Promise.all([
       q(supabase.from('events').select('*').order('sort')),
-      q(supabase.from('teams').select('id, event_id')),
+      qAll(() => supabase.from('teams').select('id, event_id').order('id')),
       q(supabase.from('event_evaluators').select('event_id')),
-      q(supabase.from('v_team_result').select('event_id, n_criteria_scored')),
+      qAll(() => supabase.from('v_team_result').select('team_id, event_id, n_criteria_scored').order('team_id')),
     ])
     return { events, teams, ee, results }
   }, [])

@@ -1,12 +1,12 @@
 import React, { useState } from 'react'
-import { supabase, q } from '../../lib/supabase'
+import { supabase, q, qAll } from '../../lib/supabase'
 import { useLoad } from '../../lib/useLoad'
 import { ErrorBox, Loading } from '../../components/ui'
 
 export default function People({ me }) {
   const { data, error, loading, reload } = useLoad(async () => {
     const [profiles, ee, events] = await Promise.all([
-      q(supabase.from('profiles').select('*').order('created_at')),
+      qAll(() => supabase.from('profiles').select('*').order('created_at').order('id')),
       q(supabase.from('event_evaluators').select('*')),
       q(supabase.from('events').select('id, name')),
     ])

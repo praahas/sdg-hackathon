@@ -4,7 +4,7 @@ import {
   Bar, BarChart, CartesianGrid, Cell, LabelList, Legend, PolarAngleAxis, PolarGrid, PolarRadiusAxis,
   Radar, RadarChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts'
-import { supabase, q } from '../../lib/supabase'
+import { supabase, q, qAll } from '../../lib/supabase'
 import { useLoad } from '../../lib/useLoad'
 import { loadReference } from '../../lib/reference'
 import { num, pct } from '../../lib/format'
@@ -24,16 +24,16 @@ async function fetchAll() {
     q(supabase.from('events').select('*').order('sort')),
     q(supabase.from('v_event_outcome').select('*')),
     q(supabase.from('v_overall_outcome').select('*')),
-    q(supabase.from('v_team_result').select('*')),
-    q(supabase.from('v_team_outcome').select('*')),
-    q(supabase.from('v_team_criterion').select('team_id, criterion_id, avg_score')),
+    qAll(() => supabase.from('v_team_result').select('*').order('team_id')),
+    qAll(() => supabase.from('v_team_outcome').select('*').order('team_id').order('outcome_code')),
+    qAll(() => supabase.from('v_team_criterion').select('team_id, criterion_id, avg_score').order('team_id').order('criterion_id')),
     q(supabase.from('v_sdg_goal_event').select('*').order('sdg_id')),
     q(supabase.from('v_sdg_goal_overall').select('*').order('sdg_id')),
     q(supabase.from('v_event_sdg').select('*')),
     q(supabase.from('v_overall_sdg').select('*')),
-    q(supabase.from('v_team_sdg_strength').select('*')),
+    qAll(() => supabase.from('v_team_sdg_strength').select('*').order('team_id').order('sdg_id')),
     q(supabase.from('profiles').select('id').eq('role', 'pending')),
-    q(supabase.from('teams').select('id, event_id, primary_sdg, secondary_sdg, origin_team_id')),
+    qAll(() => supabase.from('teams').select('id, event_id, primary_sdg, secondary_sdg, origin_team_id').order('id')),
   ])
   return { ref, events, evOut, overall, results, teamOut, teamCrit, sdgEvent, sdgOverall, evSdg, allSdg, teamSdg, pendingEvals, allTeams }
 }
@@ -79,10 +79,10 @@ export default function Dashboard() {
     setExporting(true); setExportErr(null)
     try {
       const [rawScores, rawRatings, teams, profiles] = await Promise.all([
-        q(supabase.from('scores').select('*')),
-        q(supabase.from('sdg_ratings').select('*')),
-        q(supabase.from('teams').select('*')),
-        q(supabase.from('profiles').select('id, full_name, email')),
+        qAll(() => supabase.from('scores').select('*').order('team_id').order('criterion_id').order('evaluator_id')),
+        qAll(() => supabase.from('sdg_ratings').select('*').order('team_id').order('sdg_id').order('evaluator_id')),
+        qAll(() => supabase.from('teams').select('*').order('id')),
+        qAll(() => supabase.from('profiles').select('id, full_name, email').order('id')),
       ])
       const { exportWorkbook } = await import('../../lib/exportXlsx')
       exportWorkbook({ ...data, rawScores, rawRatings, teams, profiles })
