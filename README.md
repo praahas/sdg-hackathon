@@ -26,13 +26,16 @@ sdg-hackathon/
 > - `supabase/migration_003_team_registration.sql`: team self-registration and team leaderboards
 > - `supabase/migration_004_evaluator_approval.sql`: new evaluator accounts need admin approval
 > - `supabase/migration_005_team_codes.sql`: automatic, sequential Team IDs (renumbers existing section-round teams once, in the order they were added)
+> - `supabase/migration_006_department_final.sql`: the department-level final round (top 5 of each semester)
+> - `supabase/migration_007_problem_statements.sql`: the department final ranks all teams instead of shortlisting, and problem statements chosen by teams
+> - `supabase/migration_008_tie_ranking.sql`: tied totals are broken by the tie-break criterion reliably (calculation-only change)
 
 1. Sign up at supabase.com and click **New project**. Pick a region close to you (for example Mumbai), set a database password, and wait for it to finish.
 2. Open **SQL Editor ▸ New query**, paste in the whole of `supabase/schema.sql`, and click **Run**. You should see "Success". This creates:
    - the tables (rounds, teams, rubric, mapping, scores, settings),
    - the security rules,
    - the calculation views,
-   - the rubric (9 criteria, 100 marks), the rubric → PO/PSO mapping, the 17 SDGs, the SDG contribution-strength ratings, and the six rounds (3A, 3B, 3rd-sem inter-section, 5A, 5B, 5th-sem inter-section).
+   - the rubric (9 criteria, 100 marks), the rubric → PO/PSO mapping, the 17 SDGs, the SDG contribution-strength ratings, and the seven rounds (3A, 3B, 3rd-sem inter-section, 5A, 5B, 5th-sem inter-section, and the department-level final).
 3. Optional but recommended: **Authentication ▸ Sign In / Providers ▸ Email**, turn off **Confirm email**, so evaluators can sign in immediately after creating an account. If you leave it on, they must click the link in their confirmation email first.
 4. Open **Project Settings ▸ API** (or **API Keys**) and copy two values:
    - **Project URL**, e.g. `https://abcdxyz.supabase.co`
@@ -102,6 +105,12 @@ npm run dev                     # opens on http://localhost:5173
 5. On the day, evaluators sign in, pick their round and team, mark the 9 rubric criteria, and then rate how strongly the solution advances each SDG the team claims (0 None, 1 Low, 2 Medium, 3 High). Everything saves when they press **Save scores**, and they can revise it until you close scoring. A team shows as done once all criteria and all claimed SDGs are rated.
 6. When a section round is finished, click **Close scoring** on its page.
 7. When both sections of a semester are finished, open the inter-section round and click **Pull shortlisted teams**. It copies the top 5 of each section. Assign evaluators to this round as well.
+7a. When both semesters' inter-section rounds are finished, open **Department-level final (intra-department hackathon)** and click **Pull shortlisted teams**. It copies the top 5 of the 3rd-semester and the top 5 of the 5th-semester inter-section rounds, 10 teams in all. There is no shortlist in this round: every team is ranked by total score (1st place, 2nd place, …). Teams keep their original Team IDs (e.g. 3A-04, 5B-02) throughout.
+7b. **Problem statements.** On any round's page, but typically the department final, click **Set problem statements**.
+   - Add the N statements. Each has a title, a description for teams, the expected primary SDG, an optional secondary SDG, and SDG targets. Codes PS01, PS02 … are assigned automatically.
+   - Click **Open selection**. Teams then choose a statement from the team portal and can change it until evaluation of their team starts.
+   - You can also assign or change a team's statement in the round's Teams table, for example for teams without a team account.
+   - A team's SDGs in that round come from its statement, so SDG ratings and SDG attainment follow the statement. Editing a statement's SDGs updates every team that chose it.
 8. **Dashboard** shows results live. Choose **All rounds together** or a single round. There are two downloads:
    - **Download formatted workbook**: the department's full evaluation workbook, filled with every team, evaluator, rubric mark and SDG rating from the app. It keeps all the sheets, formatting, formulas, attainment tables and charts, so it's the version to put in accreditation files. Excel, LibreOffice or Google Sheets calculate the results when the file opens.
    - **Download data export**: plain tables of every result and raw mark, handy for your own analysis.
@@ -159,7 +168,7 @@ The app always keeps at least one admin.
 ### Limits of the formatted workbook
 
 The workbook has fixed room, so the app tells you when something doesn't fit:
-- up to 30 teams per section round and 10 per inter-section round;
+- up to 30 teams per section round, 10 per inter-section round (5 finalists from each section), and 10 in the department-level final (5 from each semester);
 - up to 3 evaluators per round (the 3 who gave marks, in name order);
 - exactly 9 rubric criteria and the 13 PO/PSO outcomes;
 - ties broken on criterion 4, as in the workbook.
