@@ -1,6 +1,6 @@
 import React from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { supabase, q } from '../../lib/supabase'
+import { supabase, q, qAll } from '../../lib/supabase'
 import { useLoad } from '../../lib/useLoad'
 import { loadReference } from '../../lib/reference'
 import { num } from '../../lib/format'
@@ -18,8 +18,8 @@ export default function RoundTeams({ profile }) {
     const ids = teams.map((t) => t.id)
     const [scores, ratings] = ids.length
       ? await Promise.all([
-          q(supabase.from('scores').select('team_id, score').eq('evaluator_id', profile.id).in('team_id', ids)),
-          q(supabase.from('sdg_ratings').select('team_id').eq('evaluator_id', profile.id).in('team_id', ids)),
+          qAll(() => supabase.from('scores').select('team_id, criterion_id, score').eq('evaluator_id', profile.id).in('team_id', ids).order('team_id').order('criterion_id')),
+          qAll(() => supabase.from('sdg_ratings').select('team_id, sdg_id').eq('evaluator_id', profile.id).in('team_id', ids).order('team_id').order('sdg_id')),
         ])
       : [[], []]
     return { ref, event, teams, scores, ratings }

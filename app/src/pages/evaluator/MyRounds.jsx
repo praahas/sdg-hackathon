@@ -1,6 +1,6 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
-import { supabase, q } from '../../lib/supabase'
+import { supabase, q, qAll } from '../../lib/supabase'
 import { useLoad } from '../../lib/useLoad'
 import { ErrorBox, Loading } from '../../components/ui'
 import { roundType } from '../../lib/format'
@@ -13,9 +13,9 @@ export default function MyRounds({ profile }) {
     if (!events.length) return { events: [] }
     const ids = events.map((e) => e.id)
     const [teams, scores, ratings, criteria] = await Promise.all([
-      q(supabase.from('teams').select('id, event_id, primary_sdg, secondary_sdg').in('event_id', ids)),
-      q(supabase.from('scores').select('team_id').eq('evaluator_id', profile.id)),
-      q(supabase.from('sdg_ratings').select('team_id').eq('evaluator_id', profile.id)),
+      qAll(() => supabase.from('teams').select('id, event_id, primary_sdg, secondary_sdg').in('event_id', ids).order('id')),
+      qAll(() => supabase.from('scores').select('team_id, criterion_id').eq('evaluator_id', profile.id).order('team_id').order('criterion_id')),
+      qAll(() => supabase.from('sdg_ratings').select('team_id, sdg_id').eq('evaluator_id', profile.id).order('team_id').order('sdg_id')),
       q(supabase.from('criteria').select('id')),
     ])
     const perTeam = {}
