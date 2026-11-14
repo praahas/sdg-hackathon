@@ -430,7 +430,7 @@ def event_sheet(sheet, title, kind, src):
         calc(ws.cell(r, C_TOT), f'=IF(COUNT({a0}{r}:{a1}{r})=0,"",SUM({a0}{r}:{a1}{r}))', "0.0", RESF, True)
         calc(ws.cell(r, C_PCT), f'=IF({T}="","",{T}/{L(C_TOT)}$6)', "0.0%", RESF)
         K = L(C_KEY)
-        calc(ws.cell(r, C_KEY), f'=IF({T}="","",{T}+N(INDEX({L(C_AVG)}{r}:{L(C_AVG+NC-1)}{r},{S_TB}))/10000)', "0.0000")
+        calc(ws.cell(r, C_KEY), f'=IF({T}="","",ROUND({T},6)+ROUND(N(INDEX({L(C_AVG)}{r}:{L(C_AVG+NC-1)}{r},{S_TB})),6)/10000)', "0.000000")
         calc(ws.cell(r, C_RANK), f'=IF({K}{r}="","",COUNTIF(${K}${FIRST}:${K}${last},">"&{K}{r})+COUNTIF(${K}${FIRST}:{K}{r},{K}{r}))', "0", RESF, True)
         RKc = f"{L(C_RANK)}{r}"
         if sheet in RANK_ONLY:
