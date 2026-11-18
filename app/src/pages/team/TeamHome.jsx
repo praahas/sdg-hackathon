@@ -11,6 +11,46 @@ const rpcArgs = (v) => ({
   p_secondary: v.secondary, p_targets: v.targets, p_problem: v.problem,
 })
 
+function TeamCertificates({ certs, events, ctx }) {
+  const [busy, setBusy] = useState(null)
+  const [err, setErr] = useState(null)
+  const byRound = events.map((e) => [e, certs.filter((c) => c.event_id === e.id)]).filter(([, cs]) => cs.length)
+  async function get(rows, name, key) {
+    setBusy(key); setErr(null)
+    try { const { downloadCertificates } = await import('../../lib/certificates'); await downloadCertificates(rows, ctx, name) }
+    catch (e) { setErr(e.message) } finally { setBusy(null) }
+  }
+  return (
+    <section className="panel cert-panel">
+      <h2>Certificates</h2>
+      <p className="muted">Download your team's certificates, one page per certificate.</p>
+      {byRound.map(([e, cs]) => (
+        <div key={e.id} className="cert-round">
+          <div className="cert-round-head">
+            <div><b>{e.name}</b>{(() => { const w = cs.find((c) => c.kind === 'winner'); return w
+              ? <span className={`tag tag-place podium podium-${w.rank}`}>Winner: {w.place?.replace(/\b([a-z])/g, (m) => m.toUpperCase())}</span>
+              : <span className="tag">Participation</span> })()}</div>
+            <button className="btn btn-small btn-primary" disabled={busy !== null} onClick={() => get(cs, `${e.code}_${cs[0].team_code || 'team'}_certificates.pdf`, `all-${e.id}`)}>
+              {busy === `all-${e.id}` ? 'Preparing…' : `Download all (${cs.length})`}</button>
+          </div>
+          <ul className="cert-members">
+            {[...new Map(cs.map((c) => [c.member_index, c])).values()].map((m) => {
+              const own = cs.filter((c) => c.member_index === m.member_index)
+              const key = `m-${e.id}-${m.member_index}`
+              return (
+                <li key={key}><span>{m.member_name}{m.usn && <small className="muted"> {m.usn}</small>}</span>
+                  <button className="btn btn-small btn-link" disabled={busy !== null} onClick={() => get(own, `${e.code}_${m.member_name}_certificate${own.length > 1 ? 's' : ''}.pdf`, key)}>
+                    {busy === key ? 'Preparing…' : own.length > 1 ? `Download (${own.length})` : 'Download'}</button></li>
+              )
+            })}
+          </ul>
+        </div>
+      ))}
+      {err && <div className="alert alert-error"><span>{err}</span></div>}
+    </section>
+  )
+}
+
 function ProblemChooser({ team, round, options, sdgById, onChosen }) {
   const [busy, setBusy] = useState(null)
   const [err, setErr] = useState(null)
@@ -77,14 +117,20 @@ export default function TeamHome({ profile }) {
     ])
     const ids = [...new Set(mine.map((t) => t.event_id))]
     const pss = ids.length ? await q(supabase.from('problem_statements').select('*').in('event_id', ids).order('code')) : []
-    return { ref, events, mine, pss }
+    // Only certificates the coordinator has released for this team's rounds come back.
+    const [certs, sigs, branding] = await Promise.all([
+      q(supabase.from('certificates').select('*').order('event_id').order('member_index')),
+      q(supabase.from('signatories').select('*')),
+      q(supabase.from('branding').select('*').eq('id', 1).maybeSingle()),
+    ])
+    return { ref, events, mine, pss, certs, sigs, branding: branding || {} }
   }, [profile.id])
   const [editing, setEditing] = useState(false)
   const [done, setDone] = useState(null)
 
   if (loading && !data) return <Loading />
   if (error) return <ErrorBox error={error} onRetry={reload} />
-  const { ref, events, mine, pss } = data
+  const { ref, events, mine, pss, certs, sigs, branding } = data
   const evById = Object.fromEntries(events.map((e) => [e.id, e]))
   const team = mine.find((t) => evById[t.event_id]?.kind === 'intra')
   const finals = mine.filter((t) => evById[t.event_id]?.kind === 'inter')
@@ -144,6 +190,7 @@ export default function TeamHome({ profile }) {
         <ProblemChooser key={t.id} team={t} round={evById[t.event_id]} options={pss.filter((p) => p.event_id === t.event_id)}
           sdgById={ref.sdgById} onChosen={async (msg) => { setDone(msg); await reload() }} />
       ))}
+      {certs.length > 0 && <TeamCertificates certs={certs} events={events} ctx={{ settings: ref.settings, events, sdgById: ref.sdgById, signatories: sigs, branding }} />}
       <section className="panel team-card">
         <dl className="kv">
           <div><dt>Members</dt><dd>{members ? <ol>{members.map((m, i) => <li key={i}>{m.name}{m.usn ? <span className="muted"> {m.usn}</span> : null}</li>)}</ol> : team.members}</dd></div>
