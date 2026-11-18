@@ -14,6 +14,8 @@ import Rounds from './pages/admin/Rounds'
 import RoundDetail from './pages/admin/RoundDetail'
 import Setup from './pages/admin/Setup'
 import People from './pages/admin/People'
+import Certificates from './pages/admin/Certificates'
+import Verify from './pages/Verify'
 import TeamHome from './pages/team/TeamHome'
 import Leaderboard from './pages/team/Leaderboard'
 
@@ -28,6 +30,13 @@ function NotConfigured() {
 }
 
 export default function App() {
+  // The certificate verification page is public and works whether or not anyone is signed in.
+  const [onVerify, setOnVerify] = useState(() => window.location.hash.startsWith('#/verify'))
+  useEffect(() => {
+    const f = () => setOnVerify(window.location.hash.startsWith('#/verify'))
+    window.addEventListener('hashchange', f)
+    return () => window.removeEventListener('hashchange', f)
+  }, [])
   const [session, setSession] = useState(undefined)
   const [profile, setProfile] = useState(null)
 
@@ -60,6 +69,7 @@ export default function App() {
   }, [session?.user?.id])
 
   if (!configured) return <NotConfigured />
+  if (onVerify) return <HashRouter><Routes><Route path="/verify" element={<Verify />} /><Route path="/verify/:code" element={<Verify />} /><Route path="*" element={<Verify />} /></Routes></HashRouter>
   if (session === undefined) return <Loading />
   if (!session) return <HashRouter><Portal /></HashRouter>
   if (!profile) return <Loading label="Loading your account…" />
@@ -101,6 +111,7 @@ export default function App() {
               <Route path="/admin/rounds/:eventId" element={<RoundDetail />} />
               <Route path="/admin/setup" element={<Setup />} />
               <Route path="/admin/people" element={<People me={profile} />} />
+              <Route path="/admin/certificates" element={<Certificates />} />
             </>
           )}
           <Route path="*" element={<Navigate to="/" replace />} />
