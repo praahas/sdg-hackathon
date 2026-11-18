@@ -127,6 +127,7 @@ function Landing() {
           <span className="landing-go">Sign in or create an account</span>
         </Link>
       </div>
+      <p className="small"><Link to="/verify">Verify a certificate</Link></p>
       <PoweredBy />
     </div>
   )
