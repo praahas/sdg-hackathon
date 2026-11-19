@@ -103,7 +103,7 @@ function LogoSlot({ side, label, value, onUpload, onRemove }) {
   return (
     <div className="logo-slot">
       <span className="small"><b>{label}</b></span>
-      <div className="logo-preview">{value ? <img src={value} alt={`${label} logo`} /> : <span className="muted small">No logo: this corner stays blank</span>}</div>
+      <div className="logo-preview">{value ? <img src={value} alt={`${label} logo`} /> : <span className="muted small">No logo: this spot stays blank</span>}</div>
       <div className="sig-actions">
         <label className="btn btn-small file-btn">{value ? 'Replace' : 'Upload logo'}
           <input type="file" accept="image/png,image/jpeg,image/webp" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) onUpload(side, f) }} /></label>
@@ -126,10 +126,16 @@ function Logos({ branding, reload, setMsg }) {
   return (
     <section className="panel">
       <h2>Logos</h2>
-      <p>Printed in the top-left and top-right corners of every certificate, for example the institution's logo and the hackathon's. A PNG with a transparent background looks best. Leave either empty to keep that corner blank.</p>
-      <div className="logo-grid">
-        <LogoSlot side="left" label="Top left" value={branding.logo_left} onUpload={upload} onRemove={(s) => save(s, null)} />
-        <LogoSlot side="right" label="Top right" value={branding.logo_right} onUpload={upload} onRemove={(s) => save(s, null)} />
+      <p>Up to six logos: a main logo in each top corner, and up to two smaller ones stacked under each, for example the institution, the founder's emblem, IIC, IQAC or a sponsor. A PNG with a transparent background looks best. Leave any slot empty to keep it blank.</p>
+      <div className="logo-columns">
+        {[['left', 'Left'], ['right', 'Right']].map(([side, name]) => (
+          <div key={side} className="logo-column">
+            <h3>{name} side</h3>
+            <LogoSlot side={side} label={`Top ${side} (main)`} value={branding[`logo_${side}`]} onUpload={upload} onRemove={(s) => save(s, null)} />
+            <LogoSlot side={`${side}2`} label={`${name}, below the main logo`} value={branding[`logo_${side}2`]} onUpload={upload} onRemove={(s) => save(s, null)} />
+            <LogoSlot side={`${side}3`} label={`${name}, lowest`} value={branding[`logo_${side}3`]} onUpload={upload} onRemove={(s) => save(s, null)} />
+          </div>
+        ))}
       </div>
     </section>
   )

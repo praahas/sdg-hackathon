@@ -17,7 +17,7 @@ function SettingsForm({ settings, onSaved }) {
   async function save(e) {
     e.preventDefault(); setMsg(null)
     const body = {
-      title: f.title, institution: f.institution, department: f.department, academic_year: f.academic_year,
+      title: f.title, institution: f.institution, address: (f.address || '').trim(), department: f.department, academic_year: f.academic_year,
       shortlist_count: Number(f.shortlist_count), sdg_strength_target: Number(f.sdg_strength_target),
       team_min_members: Number(f.team_min_members), team_max_members: Number(f.team_max_members), updated_at: new Date().toISOString(),
       ...Object.fromEntries(PCT_FIELDS.map((k) => [k, Number(f[k]) / 100])),
@@ -60,6 +60,7 @@ function SettingsForm({ settings, onSaved }) {
       <div className="form-grid">
         <label>Title<input value={f.title} onChange={set('title')} /></label>
         <label>Institution<input value={f.institution} onChange={set('institution')} /></label>
+        <label>Institution address<input value={f.address ?? ''} onChange={set('address')} placeholder="e.g. Sudhindra Nagara, Benjanapadavu, Bantwal Tq, D. K. - 574219" /></label>
         <label>Department<input value={f.department} onChange={set('department')} /></label>
         <label>Academic year<input value={f.academic_year} onChange={set('academic_year')} /></label>
       </div>
