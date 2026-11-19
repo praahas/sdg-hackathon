@@ -178,6 +178,7 @@ export default function ScoreTeam({ profile }) {
         </div>
       </div>
       {locked && <Notice kind="warn">Scoring for this round is closed, so these marks can't be changed.</Notice>}
+      {team.absent && <Notice kind="warn">The coordinator has marked this team absent for this round. Marks entered here are not counted and the team gets no certificate.</Notice>}
 
       {ref.criteria.map((c) => (
         <CriterionScorer key={c.id} c={c} value={values[c.id] ?? ''} disabled={locked || busy}

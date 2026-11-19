@@ -57,9 +57,10 @@ export default function RoundTeams({ profile }) {
                 </span>
                 <SdgChip sdg={ref.sdgById[t.primary_sdg]} compact />
                 <span className="team-state">
+                  {t.absent ? <span className="tag tag-absent">Absent</span> : <>
                   {state === 'todo' && 'Not scored'}
                   {state === 'part' && `${got} of ${need} items`}
-                  {state === 'done' && `${num(total)} / ${num(ref.maxTotal)}`}
+                  {state === 'done' && `${num(total)} / ${num(ref.maxTotal)}`}</>}
                 </span>
               </Link>
             </li>
