@@ -16,7 +16,7 @@ function Figures({ f }) {
     ['Teams presented', `${x.present}`, `of ${x.teams} registered${x.absent ? `, ${x.absent} absent` : ''}`],
     ['Feedback responses', `${x.responses}`, x.members ? `of ${x.members} participants (${pct(x.responses / x.members)})` : 'no feedback collected'],
     ['Overall rating', x.overall == null ? '—' : n1(x.overall), x.overall == null ? 'no ratings yet' : 'out of 5'],
-    ['SDGs addressed', `${x.sdgs_covered}`, 'of 17 goals'],
+    ['SDGs addressed', `${x.sdgs_covered}`, x.sdgs_presented != null && x.sdgs_presented !== x.sdgs_covered ? `of 17 goals (${x.sdgs_presented} counting only teams that presented)` : 'of 17 goals'],
     ['Outcomes at level 3', `${x.outcomes_l3}`, `of ${x.outcomes} POs and PSOs`],
   ]
   return (
@@ -73,16 +73,17 @@ function Sdgs({ f, sdgById }) {
         {Array.from({ length: 17 }, (_, i) => i + 1).map((id) => {
           const g = f.sdg.covered.find((x) => x.id === id)
           const weak = f.sdg.weak.some((x) => x.id === id)
+          const absentOnly = (f.sdg.absentOnly || []).some((x) => x.id === id)
           const s = sdgById[id]
           return (
-            <div key={id} className={`ins-sdg ${g ? 'on' : 'off'} ${weak ? 'weak' : ''}`} style={g ? { background: s?.color } : undefined}
-              title={`SDG ${id} ${s?.name ?? ''}: ${g ? `${g.primary} primary, ${g.secondary} secondary${g.avg_strength != null ? `, strength ${n1(g.avg_strength)}/3` : ''}` : 'no team'}`}>
+            <div key={id} className={`ins-sdg ${g ? 'on' : 'off'} ${weak ? 'weak' : ''} ${absentOnly ? 'absent-only' : ''}`} style={g ? { background: s?.color } : undefined}
+              title={`SDG ${id} ${s?.name ?? ''}: ${g ? `${g.primary} primary, ${g.secondary} secondary${absentOnly ? ', chosen only by absent teams' : ''}${g.avg_strength != null ? `, strength ${n1(g.avg_strength)}/3` : ''}` : 'no team'}`}>
               <b>{id}</b><span>{g ? g.primary + g.secondary : 0}</span>
             </div>
           )
         })}
       </div>
-      <p className="muted small">Number of teams per goal. Grey: no team chose it. Dashed outline: average strength below the target of {f.sdg.target}/3.</p>
+      <p className="muted small">Projects per goal, counted as on the Dashboard (each project once across rounds). Grey: no project chose it. Faded: chosen only by teams marked absent. Dashed outline: average strength below the target of {f.sdg.target}/3.</p>
     </>
   )
 }
