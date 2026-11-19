@@ -6,7 +6,7 @@ import PoweredBy from './PoweredBy'
 export default function Layout({ profile, children }) {
   const admin = profile.role === 'admin'
   const links = admin
-    ? [['/admin', 'Dashboard', true], ['/admin/rounds', 'Rounds & teams'], ['/admin/setup', 'Rubric & targets'], ['/admin/people', 'People'], ['/admin/certificates', 'Certificates'], ['/admin/feedback', 'Feedback'], ['/score', 'My scoring']]
+    ? [['/admin', 'Dashboard', true], ['/admin/rounds', 'Rounds & teams'], ['/admin/setup', 'Rubric & targets'], ['/admin/people', 'People'], ['/admin/certificates', 'Certificates'], ['/admin/feedback', 'Feedback'], ['/admin/insights', 'Insights'], ['/score', 'My scoring']]
     : profile.role === 'team'
       ? [['/team', 'My team', true], ['/team/leaderboard', 'Leaderboard']]
       : [['/score', 'My rounds']]
