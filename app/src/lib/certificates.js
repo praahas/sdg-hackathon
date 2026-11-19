@@ -1,6 +1,7 @@
 // Builds certificate PDFs in the browser (A4 landscape, one page per member).
 // Content comes from issued certificate rows, so a certificate always matches its
 // verification record. Fonts are the PDF standard fonts (Times, Helvetica).
+import { signatoriesFor } from './signatories'
 import { jsPDF } from 'jspdf'
 
 const W = 297, H = 210
@@ -191,16 +192,16 @@ async function drawCertificate(doc, c, ctx) {
     })
   }
 
-  // Signatories
-  const sigs = signatories.slice(0, 3)
+  // Signatories for this certificate's round
+  const sigs = signatoriesFor(signatories, c.event_id)
   if (sigs.length) {
-    const slot = Math.min(80, (W - 90) / sigs.length)
+    const slot = Math.min(80, (W - 60) / sigs.length)
     const start = cx - (slot * sigs.length) / 2
     const lineY = 176
     sigs.forEach((sg, i) => {
       const sx = start + slot * i + slot / 2
       if (sg.img) {
-        const maxW = 52, maxH = 18
+        const maxW = Math.min(52, slot - 8), maxH = 18
         const r = Math.min(maxW / sg.img.w, maxH / sg.img.h)
         const iw = sg.img.w * r, ih = sg.img.h * r
         try { doc.addImage(sg.img.src, sg.img.src.startsWith('data:image/png') ? 'PNG' : 'JPEG', sx - iw / 2, lineY - 1.5 - ih, iw, ih) } catch { /* unreadable image: leave space */ }
