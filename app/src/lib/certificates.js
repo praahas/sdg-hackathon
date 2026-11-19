@@ -67,6 +67,23 @@ function fitLines(doc, text, maxW, maxLines) {
   return kept
 }
 
+// Sets the largest font size (from max down to min) at which text fits in maxW mm.
+function fitFont(doc, text, maxW, max, min, charSpace = 0) {
+  let size = max
+  for (; size > min; size -= 0.5) {
+    doc.setFontSize(size)
+    if (doc.getTextWidth(text) + charSpace * Math.max(0, text.length - 1) <= maxW) return size
+  }
+  doc.setFontSize(min)
+  return min
+}
+
+// Centred text with letter spacing (jsPDF's own centring ignores the spacing).
+function spacedCentered(doc, text, cx, y, charSpace) {
+  const w = doc.getTextWidth(text) + charSpace * Math.max(0, text.length - 1)
+  doc.text(text, cx - w / 2, y, { charSpace })
+}
+
 async function drawCertificate(doc, c, ctx) {
   const { settings: s, roundName, sdgById, signatories } = ctx
   const winner = c.kind === 'winner'
@@ -80,35 +97,52 @@ async function drawCertificate(doc, c, ctx) {
   const sw = (W - 22) / 17
   SDG_STRIP.forEach((col, i) => { doc.setFillColor(...hex(col)); doc.rect(11 + i * sw, 11, sw + 0.05, 2.6, 'F') })
 
-  // Logos: top-left and top-right; a corner without a logo stays blank.
-  for (const [logo, left] of [[ctx.logos.left, true], [ctx.logos.right, false]]) {
+  // Logos: a main logo in each top corner with up to two smaller ones stacked under it.
+  // An empty slot stays blank.
+  const slots = [
+    ['left', 0, 30, 24, 17], ['left2', 0, 24, 16, 45], ['left3', 0, 24, 16, 64],
+    ['right', 1, 30, 24, 17], ['right2', 1, 24, 16, 45], ['right3', 1, 24, 16, 64],
+  ]
+  for (const [key, right, maxW, maxH, top] of slots) {
+    const logo = ctx.logos[key]
     if (!logo) continue
-    const maxW = 34, maxH = 26
     const r = Math.min(maxW / logo.w, maxH / logo.h)
     const lw = logo.w * r, lh = logo.h * r
-    const x = left ? 20 : W - 20 - lw
-    try { doc.addImage(logo.src, logo.src.startsWith('data:image/png') ? 'PNG' : 'JPEG', x, 18 + (maxH - lh) / 2, lw, lh) } catch { /* unreadable image: leave blank */ }
+    const colCx = right ? W - 33 : 33
+    try { doc.addImage(logo.src, logo.src.startsWith('data:image/png') ? 'PNG' : 'JPEG', colCx - lw / 2, top + (maxH - lh) / 2, lw, lh) } catch { /* unreadable image: leave blank */ }
   }
 
+  // Heading: institution name, address in smaller type, department, hackathon.
   const cx = W / 2
-  doc.setTextColor(...NAVY); doc.setFont('times', 'bold'); doc.setFontSize(20)
-  doc.text(clean(s.institution), cx, 27, { align: 'center' })
+  const address = clean(s.address || '').trim()
+  const d = address ? 4 : 0 // extra room the address line takes
+  doc.setTextColor(...NAVY); doc.setFont('times', 'bold')
+  fitFont(doc, clean(s.institution).toUpperCase(), 180, 21, 14, 0.4)
+  spacedCentered(doc, clean(s.institution).toUpperCase(), cx, 27, 0.4)
+  if (address) {
+    doc.setFont('helvetica', 'normal'); doc.setTextColor(...INK)
+    fitFont(doc, address.toUpperCase(), 180, 10, 7, 0.15)
+    spacedCentered(doc, address.toUpperCase(), cx, 33, 0.15)
+  }
   doc.setFont('helvetica', 'normal'); doc.setFontSize(11.5); doc.setTextColor(...GREY)
-  doc.text(clean(`Department of ${s.department}`), cx, 34, { align: 'center' })
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(...TEAL)
-  doc.text(clean(s.title).toUpperCase(), cx, 43, { align: 'center', charSpace: 0.6 })
+  doc.text(clean(`Department of ${s.department}`), cx, 34 + d + 1, { align: 'center' })
+  doc.setFont('helvetica', 'bold'); doc.setTextColor(...TEAL)
+  fitFont(doc, clean(s.title).toUpperCase(), 176, 11, 8, 0.6)
+  spacedCentered(doc, clean(s.title).toUpperCase(), cx, 43 + d + 0.5, 0.6)
 
-  doc.setFont('times', 'bold'); doc.setFontSize(29); doc.setTextColor(...NAVY)
-  doc.text(winner ? 'CERTIFICATE OF ACHIEVEMENT' : 'CERTIFICATE OF PARTICIPATION', cx, 58, { align: 'center', charSpace: 0.5 })
+  const heading = winner ? 'CERTIFICATE OF ACHIEVEMENT' : 'CERTIFICATE OF PARTICIPATION'
+  doc.setFont('times', 'bold'); doc.setTextColor(...NAVY)
+  fitFont(doc, heading, 176, 29, 20, 0.5)
+  spacedCentered(doc, heading, cx, 58 + d, 0.5)
   if (winner && c.place) {
     const label = titleCase(clean(c.place))
     doc.setFont('helvetica', 'bold'); doc.setFontSize(12)
     const bw = doc.getTextWidth(label) + 14
-    doc.setFillColor(...GOLD); doc.roundedRect(cx - bw / 2, 62.5, bw, 8.5, 4.2, 4.2, 'F')
-    doc.setTextColor(255, 255, 255); doc.text(label, cx, 68.4, { align: 'center' })
+    doc.setFillColor(...GOLD); doc.roundedRect(cx - bw / 2, 62.5 + d, bw, 8.5, 4.2, 4.2, 'F')
+    doc.setTextColor(255, 255, 255); doc.text(label, cx, 68.4 + d, { align: 'center' })
   }
 
-  let y = winner ? 82 : 75
+  let y = (winner ? 82 : 75) + d
   doc.setFont('times', 'italic'); doc.setFontSize(13); doc.setTextColor(...GREY)
   doc.text('This is to certify that', cx, y, { align: 'center' })
   y += 13
@@ -191,7 +225,9 @@ export async function buildCertificatesPdf(certs, ctx) {
     .map(async (s) => ({ ...s, img: s.signature ? await loadImage(s.signature) : null })))
   const evName = Object.fromEntries(ctx.events.map((e) => [e.id, e.name]))
   const b = ctx.branding || {}
-  const [left, right] = await Promise.all([b.logo_left ? loadImage(b.logo_left) : null, b.logo_right ? loadImage(b.logo_right) : null])
+  const keys = ['left', 'left2', 'left3', 'right', 'right2', 'right3']
+  const imgs = await Promise.all(keys.map((k) => (b[`logo_${k}`] ? loadImage(b[`logo_${k}`]) : null)))
+  const logos = Object.fromEntries(keys.map((k, i) => [k, imgs[i]]))
   const won = new Set(certs.filter((c) => c.kind === 'winner').map((c) => c.team_id))
   const sorted = [...certs].sort((a, b) => (won.has(b.team_id) - won.has(a.team_id))
     || (won.has(a.team_id) ? (a.rank ?? 999) - (b.rank ?? 999) : 0)
@@ -199,7 +235,7 @@ export async function buildCertificatesPdf(certs, ctx) {
     || a.member_index - b.member_index || (a.kind === 'winner' ? -1 : b.kind === 'winner' ? 1 : 0))
   for (let i = 0; i < sorted.length; i++) {
     if (i) doc.addPage()
-    await drawCertificate(doc, sorted[i], { ...ctx, signatories: sigs, logos: { left, right }, roundName: (id) => evName[id] || '' })
+    await drawCertificate(doc, sorted[i], { ...ctx, signatories: sigs, logos, roundName: (id) => evName[id] || '' })
   }
   return doc
 }
