@@ -11,7 +11,7 @@
 -- ---------------------------------------------------------------------
 create table public.settings (
   id              int primary key default 1 check (id = 1),
-  title           text not null default 'SDG Hackathon 2026',
+  title           text not null default 'SDG Innovation League - A Multilevel SDG Innovation Hackathon',
   institution     text not null default 'Canara Engineering College, Mangaluru',
   department      text not null default 'Artificial Intelligence and Machine Learning',
   academic_year   text not null default '2026-27',
@@ -1494,5 +1494,20 @@ begin
   return jsonb_build_object('certificates', n + nw, 'participation', n, 'winner', nw, 'teams_without_members', skipped);
 end $$;
 grant execute on function public.issue_certificates(int) to authenticated;
+
+notify pgrst, 'reload schema';
+
+-- ---------------------------------------------------------------------
+-- 16. Six certificate logos; institution address
+-- ---------------------------------------------------------------------
+
+alter table public.branding
+  add column if not exists logo_left2  text check (logo_left2  is null or (logo_left2  like 'data:image/%' and length(logo_left2)  < 1500000)),
+  add column if not exists logo_left3  text check (logo_left3  is null or (logo_left3  like 'data:image/%' and length(logo_left3)  < 1500000)),
+  add column if not exists logo_right2 text check (logo_right2 is null or (logo_right2 like 'data:image/%' and length(logo_right2) < 1500000)),
+  add column if not exists logo_right3 text check (logo_right3 is null or (logo_right3 like 'data:image/%' and length(logo_right3) < 1500000));
+
+alter table public.settings
+  add column if not exists address text not null default '';
 
 notify pgrst, 'reload schema';
