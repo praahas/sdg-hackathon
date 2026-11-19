@@ -548,3 +548,12 @@ figcaption { font-size: .86rem; font-weight: 650; color: var(--ink-2); margin-bo
 .fb-stack { display: flex; height: 18px; border-radius: 3px; overflow: hidden; background: var(--line-2); }
 .fb-stack > div { color: #fff; font-size: .7rem; font-weight: 700; display: flex; align-items: center; justify-content: center; }
 @media (max-width: 640px) { .fb-rate { grid-template-columns: 1fr 60px; } .fb-stack { grid-column: 1 / -1; } .fb-rate-n, .fb-rate-head > div:nth-child(n+3) { display: none; } }
+.sig-rounds { border: 0; padding: 0; margin: 0; min-width: 0; }
+.sig-rounds legend { font-weight: 600; font-size: .88rem; padding: 0; margin-bottom: 4px; }
+.sig-rounds-mode { display: flex; gap: 14px; flex-wrap: wrap; font-size: .86rem; }
+.sig-round-list { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+.chip { display: inline-flex; flex-direction: row; align-items: center; gap: 5px; padding: 3px 9px; border: 1px solid var(--line); border-radius: 999px; font-size: .78rem; font-weight: 500; cursor: pointer; background: #fff; }
+.chip input { width: 13px; height: 13px; min-height: 0; margin: 0; }
+.chip.on { background: #e3f1ec; border-color: var(--teal); }
+.chip:has(input:focus-visible) { outline: 2px solid var(--teal); outline-offset: 1px; }
+.sig-who { font-size: .86rem; min-width: 150px; }
