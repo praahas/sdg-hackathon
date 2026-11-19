@@ -560,3 +560,8 @@ figcaption { font-size: .86rem; font-weight: 650; color: var(--ink-2); margin-bo
 .cert-gaps { margin-top: 4px; font-size: .82rem; min-width: 200px; max-width: 280px; }
 .cert-gaps summary { cursor: pointer; }
 .cert-gaps ul { margin: 4px 0 0; padding-left: 16px; }
+.tag-absent { background: #fbe9e5; color: var(--danger); margin-left: 0; }
+.absent-check { display: inline-flex; margin-left: 10px; font-size: .8rem; font-weight: 500; color: var(--ink-2); vertical-align: middle; gap: 5px; }
+.absent-check input { width: 15px; height: 15px; margin-top: 0; }
+.row-absent td { background: #fdf6f4; }
+.row-absent td:not(:first-child) { color: var(--muted); }
