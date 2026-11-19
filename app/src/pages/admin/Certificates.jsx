@@ -186,7 +186,8 @@ function RoundRow({ e, scored, certs, ctx, act, setMsg }) {
       <td>{mine.length ? (
         <button className={`btn btn-small ${e.certificates_released ? 'btn-danger' : ''}`} onClick={release}>{e.certificates_released ? 'Hide from teams' : 'Release to teams'}</button>
       ) : <span className="muted small">—</span>}
-        {e.certificates_released && mine.length > 0 && <small className="tag tag-open block-tag">Released</small>}</td>
+        {e.certificates_released && mine.length > 0 && <small className="tag tag-open block-tag">Released</small>}
+        {e.feedback_required && <small className="muted block"><Link to="/admin/feedback">Feedback required</Link> first</small>}</td>
       <td><div className="cert-actions">
         <button className="btn btn-small btn-primary" disabled={!e.event_date || !scored} onClick={issue}>{mine.length ? 'Re-issue' : 'Issue'}</button>
         {mine.length > 0 && (
