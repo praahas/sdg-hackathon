@@ -599,3 +599,4 @@ figcaption { font-size: .86rem; font-weight: 650; color: var(--ink-2); margin-bo
 .ins-status { display: grid; gap: 6px; margin: 12px 0; font-size: .9rem; color: var(--ink-2); }
 .ins-narrative { margin-top: 12px; }
 .ins-narrative textarea { width: 100%; font: .92rem/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-s); }
+.ins-sdg.absent-only { opacity: .45; background-image: repeating-linear-gradient(45deg, rgba(255,255,255,.35) 0 4px, transparent 4px 8px) !important; }
