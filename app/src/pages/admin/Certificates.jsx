@@ -170,7 +170,19 @@ function Logos({ branding, reload, setMsg }) {
   )
 }
 
-function RoundRow({ e, scored, certs, ctx, act, setMsg }) {
+const GAP_TEXT = { missing: 'no certificate yet', changed: 'name or USN changed', removed: 'no longer on the team' }
+
+// Members whose certificates don't match the team as it is now.
+function OutOfDate({ gaps }) {
+  return (
+    <details className="cert-gaps">
+      <summary className="field-error">{gaps.length} member{gaps.length === 1 ? '' : 's'} changed since issuing: click Re-issue</summary>
+      <ul>{gaps.map((g, i) => <li key={i}><b>{g.member_name}</b> <span className="muted">{g.team_code}</span>: {GAP_TEXT[g.issue]}</li>)}</ul>
+    </details>
+  )
+}
+
+function RoundRow({ e, scored, certs, ctx, act, setMsg, gaps }) {
   const [teamSel, setTeamSel] = useState('')
   const [busy, setBusy] = useState(null)
   const mine = certs.filter((c) => c.event_id === e.id)
@@ -191,7 +203,7 @@ function RoundRow({ e, scored, certs, ctx, act, setMsg }) {
   const issue = () => act(async () => {
     const res = await q(supabase.rpc('issue_certificates', { p_event: e.id }))
     const missing = res.teams_without_members || []
-    setMsg({
+    return ({
       kind: missing.length ? 'warn' : 'ok',
       text: `${e.name}: ${res.participation} participation${res.winner ? ` and ${res.winner} winner` : ''} certificates issued.${missing.length
         ? ` ${missing.length} evaluated team${missing.length === 1 ? ' has' : 's have'} no readable member names and got none: ${missing.join(', ')}. Add their members on the round page (e.g. "Asha (4CB23AI001), Bala (4CB23AI002)") and issue again.`
@@ -200,7 +212,7 @@ function RoundRow({ e, scored, certs, ctx, act, setMsg }) {
   })
   const release = () => act(async () => {
     await q(supabase.from('events').update({ certificates_released: !e.certificates_released }).eq('id', e.id))
-    setMsg({ kind: 'ok', text: e.certificates_released ? `${e.name}: certificates hidden from teams.` : `${e.name}: teams can now download their certificates.` })
+    return { kind: 'ok', text: e.certificates_released ? `${e.name}: certificates hidden from teams.` : `${e.name}: teams can now download their certificates.` }
   })
 
   return (
@@ -215,7 +227,8 @@ function RoundRow({ e, scored, certs, ctx, act, setMsg }) {
       <td>{e.winners_count > 0 ? <span className="tag tag-place podium podium-1">Top {e.winners_count} teams</span> : <span className="muted small">None</span>}</td>
       <td>{mine.length
         ? <><b>{parts.length}</b> <small className="muted">participation</small>{winners.length > 0 && <><br /><b>{winners.length}</b> <small className="muted">winner</small></>}
-            {stale && <small className="field-error block">Issued under the old rules: click Re-issue</small>}</>
+            {stale && <small className="field-error block">Issued under the old rules: click Re-issue</small>}
+            {gaps.length > 0 && <OutOfDate gaps={gaps} />}</>
         : <span className="muted">Not issued</span>}</td>
       <td>{mine.length ? (
         <button className={`btn btn-small ${e.certificates_released ? 'btn-danger' : ''}`} onClick={release}>{e.certificates_released ? 'Hide from teams' : 'Release to teams'}</button>
@@ -242,22 +255,24 @@ function RoundRow({ e, scored, certs, ctx, act, setMsg }) {
 
 export default function Certificates() {
   const { data, error, loading, reload } = useLoad(async () => {
-    const [ref, events, sigs, branding, certs, results] = await Promise.all([
+    const [ref, events, sigs, branding, certs, results, gaps] = await Promise.all([
       loadReference(),
       q(supabase.from('events').select('*').order('sort')),
       q(supabase.from('signatories').select('*').order('sort').order('id')),
       q(supabase.from('branding').select('*').eq('id', 1).maybeSingle()),
       qAll(() => supabase.from('certificates').select('*').order('id')),
       qAll(() => supabase.from('v_team_result').select('team_id, event_id, n_criteria_scored').order('team_id')),
+      q(supabase.rpc('certificate_gaps')),
     ])
-    return { ref, events, sigs, branding: branding || {}, certs, results }
+    return { ref, events, sigs, branding: branding || {}, certs, results, gaps }
   }, [])
   const [msg, setMsg] = useState(null)
   if (loading && !data) return <Loading />
   if (error) return <ErrorBox error={error} onRetry={reload} />
-  const { ref, events, sigs, branding, certs, results } = data
+  const { ref, events, sigs, branding, certs, results, gaps } = data
   const ctx = { settings: ref.settings, events, sdgById: ref.sdgById, signatories: sigs, branding }
-  const act = async (fn) => { setMsg(null); try { await fn(); await reload() } catch (err) { setMsg({ kind: 'error', text: err.message }) } }
+  // fn may return a message; it is shown once the page has the refreshed data.
+  const act = async (fn) => { setMsg(null); try { const m = await fn(); await reload(); if (m) setMsg(m) } catch (err) { setMsg({ kind: 'error', text: err.message }) } }
   const noSigs = !sigs.some((s) => s.active)
 
   return (
@@ -282,7 +297,7 @@ export default function Certificates() {
             <thead><tr><th>Round</th><th>Date</th><th>Signed by</th><th className="r">Teams evaluated</th><th>Winner certificates</th><th>Issued</th><th>Teams</th><th /></tr></thead>
             <tbody>
               {events.map((e) => (
-                <RoundRow key={e.id} e={e} certs={certs} ctx={ctx} act={act} setMsg={setMsg}
+                <RoundRow key={e.id} e={e} certs={certs} ctx={ctx} act={act} setMsg={setMsg} gaps={gaps.filter((g) => g.event_id === e.id)}
                   scored={results.filter((r) => r.event_id === e.id && r.n_criteria_scored > 0).length} />
               ))}
             </tbody>

@@ -27,7 +27,9 @@ function TeamRow({ team, sdgs, onSaved, onDeleted, origin, autoCode, pss = [] })
           ? { problem_statement_id: t.problem_statement_id }   // problem text and SDGs come from the statement
           : { problem_statement_id: null, primary_sdg: t.primary_sdg, secondary_sdg: t.secondary_sdg, sdg_targets: t.sdg_targets, problem: t.problem }),
       }).eq('id', team.id))
-      onSaved()
+      onSaved((t.members ?? '') !== (team.members ?? '')
+        ? `${t.name}: members updated here and in every other round this team is in. If certificates were already issued, click Re-issue on the Certificates page.`
+        : null)
     } catch (e) { setErr(e.message) } finally { setBusy(false) }
   }
   async function remove() {
@@ -403,7 +405,7 @@ export default function RoundDetail() {
           <table className="table table-edit">
             <thead><tr><th>Team ID</th><th>Team name</th><th>Members</th><th>Primary SDG</th><th>Secondary SDG</th><th>SDG targets</th><th>Problem statement</th><th /></tr></thead>
             <tbody>
-              {teams.map((t) => <TeamRow key={t.id} team={t} sdgs={ref.sdgs} origin={originName(t)} autoCode={event.kind === 'intra'} pss={pss} onSaved={reload} onDeleted={reload} />)}
+              {teams.map((t) => <TeamRow key={t.id} team={t} sdgs={ref.sdgs} origin={originName(t)} autoCode={event.kind === 'intra'} pss={pss} onSaved={(text) => { if (text) setMsg({ kind: 'ok', text }); reload() }} onDeleted={reload} />)}
               <tr className="row-new">
                 <td>{event.kind === 'intra'
                   ? <span className="muted small">Auto</span>
