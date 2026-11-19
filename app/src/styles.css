@@ -557,3 +557,6 @@ figcaption { font-size: .86rem; font-weight: 650; color: var(--ink-2); margin-bo
 .chip.on { background: #e3f1ec; border-color: var(--teal); }
 .chip:has(input:focus-visible) { outline: 2px solid var(--teal); outline-offset: 1px; }
 .sig-who { font-size: .86rem; min-width: 150px; }
+.cert-gaps { margin-top: 4px; font-size: .82rem; min-width: 200px; max-width: 280px; }
+.cert-gaps summary { cursor: pointer; }
+.cert-gaps ul { margin: 4px 0 0; padding-left: 16px; }
