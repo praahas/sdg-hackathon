@@ -105,7 +105,7 @@ async function openTemplate() {
 }
 
 export async function downloadWorkbookReport() {
-  const [ref, events, teams, scores, ratings, profiles, assignments] = await Promise.all([
+  let [ref, events, teams, scores, ratings, profiles, assignments] = await Promise.all([
     loadReference(),
     q(supabase.from('events').select('*').order('sort')),
     qAll(() => supabase.from('teams').select('*').order('id')),
@@ -114,6 +114,12 @@ export async function downloadWorkbookReport() {
     qAll(() => supabase.from('profiles').select('id, full_name, email').order('id')),
     q(supabase.from('event_evaluators').select('*')),
   ])
+  // A team marked absent counts as not evaluated: its marks are left out.
+  const absent = new Set(teams.filter((t) => t.absent).map((t) => t.id))
+  if (absent.size) {
+    scores = scores.filter((x) => !absent.has(x.team_id))
+    ratings = ratings.filter((x) => !absent.has(x.team_id))
+  }
   if (ref.criteria.length !== NC || ref.outcomes.length !== NO) {
     throw new Error(`The formatted workbook is laid out for ${NC} rubric criteria and ${NO} outcomes, but the app now has ${ref.criteria.length} criteria and ${ref.outcomes.length} outcomes. Use "Download data export" instead.`)
   }
@@ -194,7 +200,7 @@ export async function downloadWorkbookReport() {
       for (let hops = 0; root?.origin_team_id && teamById[root.origin_team_id] && hops < 5; hops++) root = teamById[root.origin_team_id]
       ws.set(`B${r}`, t ? sectionLabel(evById[root.event_id]) || null : null)
       ws.set(`C${r}`, t?.team_code || null)
-      ws.set(`D${r}`, t?.name || null)
+      ws.set(`D${r}`, t ? (t.absent ? `${t.name} (absent)` : t.name) : null)
       ws.set(`E${r}`, t?.members || null)
       ws.set(`F${r}`, t ? sdgText(ref.sdgById[t.primary_sdg]) : null)
       ws.set(`G${r}`, secondary ? sdgText(ref.sdgById[secondary]) : null)

@@ -70,13 +70,13 @@ export function exportWorkbook({ ref, events, evOut, overall, results, teamOut, 
   add('Raw scores', rawScores.map((sc) => {
     const t = teams.find((x) => x.id === sc.team_id) || {}
     return { Round: evName(t.event_id), 'Team ID': t.team_code, Team: t.name, Evaluator: who(sc.evaluator_id),
-      Criterion: ref.criteria.find((c) => c.id === sc.criterion_id)?.short_name, Score: Number(sc.score), 'Saved at': sc.updated_at }
+      Criterion: ref.criteria.find((c) => c.id === sc.criterion_id)?.short_name, Score: Number(sc.score), Counted: t.absent ? 'No: team absent' : 'Yes', 'Saved at': sc.updated_at }
   }))
 
   add('Raw SDG ratings', rawRatings.map((r) => {
     const t = teams.find((x) => x.id === r.team_id) || {}
     return { Round: evName(t.event_id), 'Team ID': t.team_code, Team: t.name, Evaluator: who(r.evaluator_id),
-      SDG: `SDG ${r.sdg_id}`, Claim: r.sdg_id === t.primary_sdg ? 'Primary' : 'Secondary', 'Strength (0–3)': r.strength, 'Saved at': r.updated_at }
+      SDG: `SDG ${r.sdg_id}`, Claim: r.sdg_id === t.primary_sdg ? 'Primary' : 'Secondary', 'Strength (0–3)': r.strength, Counted: t.absent ? 'No: team absent' : 'Yes', 'Saved at': r.updated_at }
   }))
 
   XLSX.writeFile(wb, `${(s.title || 'SDG Hackathon').replace(/[^\w-]+/g, '_')}_results.xlsx`)
