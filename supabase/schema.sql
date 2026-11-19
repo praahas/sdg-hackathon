@@ -1668,3 +1668,15 @@ create policy own_team_read on public.certificates for select to authenticated
                                    where f.team_id = certificates.team_id and f.member_index = certificates.member_index))));
 
 notify pgrst, 'reload schema';
+
+-- ---------------------------------------------------------------------
+-- 18. Signatories mapped to rounds
+-- ---------------------------------------------------------------------
+
+alter table public.signatories
+  add column if not exists event_ids int[] not null default '{}';   -- empty = all rounds
+
+comment on column public.signatories.event_ids is
+  'Rounds (events.id) whose certificates carry this signature; empty means every round.';
+
+notify pgrst, 'reload schema';
