@@ -41,10 +41,11 @@ export function SdgSelect({ sdgs, value, onChange, allowEmpty = true, id }) {
   )
 }
 
-// "Shortlisted", "Not shortlisted", or a place such as "1st place" in ranked rounds.
+// "Shortlisted", "Not shortlisted", "Absent", or a place such as "1st place" in ranked rounds.
 export function StatusTag({ status }) {
   if (!status) return <span className="muted">—</span>
   if (status === 'Shortlisted') return <span className="tag tag-open">Shortlisted</span>
+  if (status === 'Absent') return <span className="tag tag-absent">Absent</span>
   const m = /^(\d+)(st|nd|rd|th) place$/.exec(status)
   if (m) return <span className={`tag tag-place ${Number(m[1]) <= 3 ? `podium podium-${m[1]}` : ''}`}>{status}</span>
   return <span className="muted">{status}</span>
