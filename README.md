@@ -33,6 +33,7 @@ sdg-hackathon/
 > - `supabase/migration_010_certificate_logos_winners.sql`: certificate logos; participation for every evaluated member; winner certificates only for the final's top 3
 > - `supabase/migration_011_more_logos_address.sql`: six certificate logos; institution address under the name
 > - `supabase/migration_012_feedback.sql`: student feedback on the event (editable questions, per-round collection, optional requirement before certificates)
+> - `supabase/migration_013_signatory_rounds.sql`: map each signatory to all rounds or to specific rounds (e.g. section coordinators)
 
 1. Sign up at supabase.com and click **New project**. Pick a region close to you (for example Mumbai), set a database password, and wait for it to finish.
 2. Open **SQL Editor ▸ New query**, paste in the whole of `supabase/schema.sql`, and click **Run**. You should see "Success". This creates:
