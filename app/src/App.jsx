@@ -15,6 +15,7 @@ import RoundDetail from './pages/admin/RoundDetail'
 import Setup from './pages/admin/Setup'
 import People from './pages/admin/People'
 import Certificates from './pages/admin/Certificates'
+import Feedback from './pages/admin/Feedback'
 import Verify from './pages/Verify'
 import TeamHome from './pages/team/TeamHome'
 import Leaderboard from './pages/team/Leaderboard'
@@ -112,6 +113,7 @@ export default function App() {
               <Route path="/admin/setup" element={<Setup />} />
               <Route path="/admin/people" element={<People me={profile} />} />
               <Route path="/admin/certificates" element={<Certificates />} />
+              <Route path="/admin/feedback" element={<Feedback />} />
             </>
           )}
           <Route path="*" element={<Navigate to="/" replace />} />
