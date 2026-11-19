@@ -37,6 +37,7 @@ sdg-hackathon/
 > - `supabase/migration_014_member_sync.sql`: member edits reach certificates and every round's copy of the team; Certificates page flags members added or changed since issuing
 > - `supabase/migration_015_absent_teams.sql`: mark a team absent in a round (unranked, left out of attainment, no certificate)
 > - `supabase/migration_016_insights.sql`: Insights page — findings and recommendations for the next hackathon, saved reports
+> - `supabase/migration_017_insights_sdg_count.sql`: Insights counts SDG coverage exactly as the Dashboard does, and flags goals chosen only by absent teams
 
 1. Sign up at supabase.com and click **New project**. Pick a region close to you (for example Mumbai), set a database password, and wait for it to finish.
 2. Open **SQL Editor ▸ New query**, paste in the whole of `supabase/schema.sql`, and click **Run**. You should see "Success". This creates:
