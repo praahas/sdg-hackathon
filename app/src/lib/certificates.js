@@ -100,8 +100,10 @@ async function drawCertificate(doc, c, ctx) {
   // Logos: a main logo in each top corner with up to two smaller ones stacked under it.
   // An empty slot stays blank.
   const slots = [
-    ['left', 0, 30, 24, 17], ['left2', 0, 24, 16, 45], ['left3', 0, 24, 16, 64],
-    ['right', 1, 30, 24, 17], ['right2', 1, 24, 16, 45], ['right3', 1, 24, 16, 64],
+    // The lower slots are wide so that wide, short logos (e.g. IEEE wordmarks) aren't tiny;
+    // square logos are limited by the height instead and stay the same size.
+    ['left', 0, 30, 24, 17], ['left2', 0, 38, 16, 45], ['left3', 0, 38, 16, 64],
+    ['right', 1, 30, 24, 17], ['right2', 1, 38, 16, 45], ['right3', 1, 38, 16, 64],
   ]
   for (const [key, right, maxW, maxH, top] of slots) {
     const logo = ctx.logos[key]
