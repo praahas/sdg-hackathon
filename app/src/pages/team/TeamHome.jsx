@@ -5,6 +5,7 @@ import { useLoad } from '../../lib/useLoad'
 import { loadReference } from '../../lib/reference'
 import { ErrorBox, Loading, Notice, SdgChip } from '../../components/ui'
 import TeamForm from '../../components/TeamForm'
+import FeedbackForm from '../../components/FeedbackForm'
 
 const rpcArgs = (v) => ({
   p_name: v.name, p_members: v.members, p_phone: v.phone, p_primary: v.primary,
@@ -48,6 +49,62 @@ function TeamCertificates({ certs, events, ctx }) {
       ))}
       {err && <div className="alert alert-error"><span>{err}</span></div>}
     </section>
+  )
+}
+
+function TeamFeedback({ rows, events, questions, onSaved }) {
+  const [open, setOpen] = useState(null) // `${team_id}-${member_index}`
+  const evById = Object.fromEntries(events.map((e) => [e.id, e]))
+  const byRound = [...new Set(rows.map((r) => r.event_id))].map((id) => [evById[id], rows.filter((r) => r.event_id === id)]).filter(([e]) => e)
+  if (!byRound.length) return null
+  return (
+    <>
+      {byRound.map(([e, ms]) => {
+        const pending = ms.filter((m) => !m.submitted_at).length
+        const locked = e.feedback_required && e.certificates_released
+        return (
+          <section key={e.id} className={`panel fb-panel ${e.feedback_open && pending ? 'panel-attn' : ''}`}>
+            <h2>Event feedback: {e.name}</h2>
+            <p className="muted">
+              {e.feedback_open
+                ? 'Each member gives their own feedback. Pass the device to each member in turn; they can change their answers until feedback closes.'
+                : 'Feedback for this round is closed.'}
+              {e.feedback_required && ' A member\'s certificate for this round can be downloaded once they have given feedback.'}
+            </p>
+            <ul className="fb-members">
+              {ms.map((m) => {
+                const key = `${m.team_id}-${m.member_index}`
+                return (
+                  <li key={key}>
+                    <div className="fb-member-row">
+                      <span>{m.member_name}{m.usn && <small className="muted"> {m.usn}</small>}</span>
+                      <span className="fb-status">
+                        {m.submitted_at
+                          ? <span className="tag tag-open">Submitted</span>
+                          : <span className="tag">{locked ? 'Needed for certificate' : 'Not yet'}</span>}
+                        {e.feedback_open && open !== key && (
+                          <button className={`btn btn-small ${m.submitted_at ? '' : 'btn-primary'}`} onClick={() => setOpen(key)}>
+                            {m.submitted_at ? 'Edit' : 'Give feedback'}</button>
+                        )}
+                      </span>
+                    </div>
+                    {open === key && (
+                      <FeedbackForm member={m} questions={questions} initial={m.submitted_at ? m.answers : null}
+                        onCancel={() => setOpen(null)}
+                        onSubmit={async (answers) => {
+                          await q(supabase.rpc('submit_feedback', { p_team: m.team_id, p_member: m.member_index, p_answers: answers }))
+                          setOpen(null)
+                          await onSaved(`Thank you, ${m.member_name}. Your feedback for ${e.name} is saved.`)
+                        }} />
+                    )}
+                  </li>
+                )
+              })}
+            </ul>
+          </section>
+        )
+      })}
+    </>
   )
 }
 
@@ -118,19 +175,21 @@ export default function TeamHome({ profile }) {
     const ids = [...new Set(mine.map((t) => t.event_id))]
     const pss = ids.length ? await q(supabase.from('problem_statements').select('*').in('event_id', ids).order('code')) : []
     // Only certificates the coordinator has released for this team's rounds come back.
-    const [certs, sigs, branding] = await Promise.all([
+    const [certs, sigs, branding, feedback, fbQuestions] = await Promise.all([
       q(supabase.from('certificates').select('*').order('event_id').order('member_index')),
       q(supabase.from('signatories').select('*')),
       q(supabase.from('branding').select('*').eq('id', 1).maybeSingle()),
+      q(supabase.rpc('my_feedback')),
+      q(supabase.from('feedback_questions').select('*').eq('active', true).order('sort').order('id')),
     ])
-    return { ref, events, mine, pss, certs, sigs, branding: branding || {} }
+    return { ref, events, mine, pss, certs, sigs, branding: branding || {}, feedback, fbQuestions }
   }, [profile.id])
   const [editing, setEditing] = useState(false)
   const [done, setDone] = useState(null)
 
   if (loading && !data) return <Loading />
   if (error) return <ErrorBox error={error} onRetry={reload} />
-  const { ref, events, mine, pss, certs, sigs, branding } = data
+  const { ref, events, mine, pss, certs, sigs, branding, feedback, fbQuestions } = data
   const evById = Object.fromEntries(events.map((e) => [e.id, e]))
   const team = mine.find((t) => evById[t.event_id]?.kind === 'intra')
   const finals = mine.filter((t) => evById[t.event_id]?.kind === 'inter')
@@ -190,6 +249,7 @@ export default function TeamHome({ profile }) {
         <ProblemChooser key={t.id} team={t} round={evById[t.event_id]} options={pss.filter((p) => p.event_id === t.event_id)}
           sdgById={ref.sdgById} onChosen={async (msg) => { setDone(msg); await reload() }} />
       ))}
+      <TeamFeedback rows={feedback} events={events} questions={fbQuestions} onSaved={async (msg) => { setDone(msg); window.scrollTo({ top: 0, behavior: 'smooth' }); await reload() }} />
       {certs.length > 0 && <TeamCertificates certs={certs} events={events} ctx={{ settings: ref.settings, events, sdgById: ref.sdgById, signatories: sigs, branding }} />}
       <section className="panel team-card">
         <dl className="kv">
