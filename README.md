@@ -36,6 +36,7 @@ sdg-hackathon/
 > - `supabase/migration_013_signatory_rounds.sql`: map each signatory to all rounds or to specific rounds (e.g. section coordinators)
 > - `supabase/migration_014_member_sync.sql`: member edits reach certificates and every round's copy of the team; Certificates page flags members added or changed since issuing
 > - `supabase/migration_015_absent_teams.sql`: mark a team absent in a round (unranked, left out of attainment, no certificate)
+> - `supabase/migration_016_insights.sql`: Insights page — findings and recommendations for the next hackathon, saved reports
 
 1. Sign up at supabase.com and click **New project**. Pick a region close to you (for example Mumbai), set a database password, and wait for it to finish.
 2. Open **SQL Editor ▸ New query**, paste in the whole of `supabase/schema.sql`, and click **Run**. You should see "Success". This creates:
@@ -202,3 +203,25 @@ If you change the rubric's structure, use the data export, or regenerate the tem
 - **Another semester or section:** add a row in Supabase ▸ Table Editor ▸ `events`. Set `kind` to `intra` or `inter`, and point `feeds_into` of section rounds at their inter-section round.
 - **Wording of POs or PSOs:** edit Table Editor ▸ `outcomes`.
 - **Next year's hackathon:** create a fresh Supabase project and run `schema.sql` again. This keeps each year's records separate.
+
+## Insights: recommendations for the next hackathon
+
+Admin ▸ **Insights** turns student feedback, SDG coverage and strength, problem-statement take-up,
+PO/PSO attainment, rubric marks, evaluator agreement and attendance into prioritised
+recommendations, each with the figures behind it. Choose the whole event or one round.
+
+* **Findings (always available).** Every figure is computed in the database (`insight_data`);
+  rules in `app/src/lib/insights.js` decide what needs attention. Comments are grouped into
+  themes by keywords. No outside service is used.
+* **Write-up (optional).** A language model runs **in the admin's browser** on the computer's
+  graphics card (WebGPU, via WebLLM) and drafts a readable report from the findings. Nothing is
+  sent anywhere. Needs a recent Chrome or Edge on a computer with a graphics card (about 2.5 GB of
+  GPU memory for the recommended model, 1.6 GB for the smaller one).
+  * One-time setup per browser: download the model folder once from its publisher, e.g.
+    `git lfs install` then `git clone https://huggingface.co/mlc-ai/Qwen2.5-3B-Instruct-q4f16_1-MLC`,
+    then click **Import model folder** on the Insights page and choose that folder. Its files are
+    copied into the browser's storage; nothing is uploaded.
+  * The compiled model programs ship with the app in `app/public/models/` (they match
+    `@mlc-ai/web-llm` 0.2.79; if you upgrade that package, replace them with the matching files
+    from the `binary-mlc-llm-libs` repository).
+* **Save report** keeps the findings and the edited write-up; **Download Word** exports both.
