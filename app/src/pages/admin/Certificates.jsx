@@ -5,25 +5,52 @@ import { useLoad } from '../../lib/useLoad'
 import { loadReference } from '../../lib/reference'
 import { roundType } from '../../lib/format'
 import { ErrorBox, Loading } from '../../components/ui'
+import { MAX_SIGNATURES, roundSignatories } from '../../lib/signatories'
 
 const longDate = (d) => (d ? new Date(`${d}T00:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '')
 
 async function pdf() { return import('../../lib/certificates') }
 
-function SignatoryCard({ s, first, last, onMove, onChanged, setMsg }) {
+// "Signs for": every round, or only the rounds ticked.
+function RoundPicker({ events, value, onChange, idPrefix }) {
+  const all = !value.length
+  const toggle = (id) => onChange(value.includes(id) ? value.filter((x) => x !== id) : [...value, id].sort((a, b) => a - b))
+  return (
+    <fieldset className="sig-rounds">
+      <legend>Signs certificates for</legend>
+      <div className="sig-rounds-mode" role="radiogroup">
+        <label className="check"><input type="radio" name={`${idPrefix}-mode`} checked={all} onChange={() => onChange([])} /><span>All rounds</span></label>
+        <label className="check"><input type="radio" name={`${idPrefix}-mode`} checked={!all} onChange={() => { if (all) onChange([events[0].id]) }} /><span>Only some rounds</span></label>
+      </div>
+      {!all && (
+        <div className="sig-round-list">
+          {events.map((e) => (
+            <label key={e.id} className={`chip ${value.includes(e.id) ? 'on' : ''}`}>
+              <input type="checkbox" checked={value.includes(e.id)} onChange={() => toggle(e.id)} />{e.name}
+            </label>
+          ))}
+        </div>
+      )}
+    </fieldset>
+  )
+}
+
+const sameIds = (a = [], b = []) => a.length === b.length && a.every((x, i) => x === b[i])
+
+function SignatoryCard({ s, events, first, last, onMove, onChanged, setMsg }) {
   const [f, setF] = useState(s)
   const [busy, setBusy] = useState(false)
   useEffect(() => setF(s), [s])
-  const dirty = f.name !== s.name || f.designation !== s.designation || f.signature !== s.signature
+  const dirty = f.name !== s.name || f.designation !== s.designation || f.signature !== s.signature || !sameIds(f.event_ids, s.event_ids)
   async function upload(e) {
     const file = e.target.files?.[0]; e.target.value = ''
     if (!file) return
-    try { const { readSignature } = await pdf(); setF({ ...f, signature: await readSignature(file) }) } catch (err) { setMsg({ kind: 'error', text: err.message }) }
+    try { const { readSignature } = await pdf(); const signature = await readSignature(file); setF((x) => ({ ...x, signature })) } catch (err) { setMsg({ kind: 'error', text: err.message }) }
   }
   async function save(patch = {}) {
     setBusy(true)
     try {
-      await q(supabase.from('signatories').update({ name: f.name.trim(), designation: f.designation.trim(), signature: f.signature, ...patch }).eq('id', s.id))
+      await q(supabase.from('signatories').update({ name: f.name.trim(), designation: f.designation.trim(), signature: f.signature, event_ids: f.event_ids || [], ...patch }).eq('id', s.id))
       onChanged()
     } catch (err) { setMsg({ kind: 'error', text: err.message }) } finally { setBusy(false) }
   }
@@ -38,6 +65,7 @@ function SignatoryCard({ s, first, last, onMove, onChanged, setMsg }) {
       </div>
       <label>Name<input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /></label>
       <label>Designation<input value={f.designation} onChange={(e) => setF({ ...f, designation: e.target.value })} placeholder="e.g. Head of Department" /></label>
+      <RoundPicker events={events} value={f.event_ids || []} onChange={(ids) => setF({ ...f, event_ids: ids })} idPrefix={`sig${s.id}`} />
       <div className="sig-actions">
         <label className="btn btn-small file-btn">{f.signature ? 'Replace signature' : 'Upload signature'}
           <input type="file" accept="image/png,image/jpeg,image/webp" onChange={upload} /></label>
@@ -54,19 +82,19 @@ function SignatoryCard({ s, first, last, onMove, onChanged, setMsg }) {
   )
 }
 
-function Signatories({ sigs, reload, setMsg }) {
-  const [n, setN] = useState({ name: '', designation: '', signature: null })
+function Signatories({ sigs, events, reload, setMsg }) {
+  const [n, setN] = useState({ name: '', designation: '', signature: null, event_ids: [] })
   const ordered = [...sigs].sort((a, b) => a.sort - b.sort || a.id - b.id)
   const active = ordered.filter((s) => s.active)
   async function upload(e) {
     const file = e.target.files?.[0]; e.target.value = ''
     if (!file) return
-    try { const { readSignature } = await pdf(); setN({ ...n, signature: await readSignature(file) }) } catch (err) { setMsg({ kind: 'error', text: err.message }) }
+    try { const { readSignature } = await pdf(); const signature = await readSignature(file); setN((x) => ({ ...x, signature })) } catch (err) { setMsg({ kind: 'error', text: err.message }) }
   }
   async function add() {
     try {
-      await q(supabase.from('signatories').insert({ name: n.name.trim(), designation: n.designation.trim(), signature: n.signature, sort: ordered.length + 1, active: active.length < 3 }))
-      setN({ name: '', designation: '', signature: null }); reload()
+      await q(supabase.from('signatories').insert({ name: n.name.trim(), designation: n.designation.trim(), signature: n.signature, event_ids: n.event_ids, sort: ordered.length + 1, active: true }))
+      setN({ name: '', designation: '', signature: null, event_ids: [] }); reload()
     } catch (err) { setMsg({ kind: 'error', text: err.message }) }
   }
   async function move(i, d) {
@@ -79,16 +107,17 @@ function Signatories({ sigs, reload, setMsg }) {
   return (
     <section className="panel">
       <h2>Signatories</h2>
-      <p>Signatures print along the bottom of every certificate, left to right in this order. Up to three are printed{active.length > 3 ? `; you have ${active.length} ticked, so only the first three will appear` : ''}.
+      <p>Signatures print along the bottom of the certificate, left to right in this order. Choose which rounds each person signs for: for example, a section coordinator signs only that section's round, while the HoD and Principal sign all rounds. Up to {MAX_SIGNATURES} signatures fit on one certificate; the Rounds table above shows who signs each round.
         Upload a scan or photo of each signature on white paper; the white background is removed automatically.</p>
       <div className="sig-grid">
         {ordered.map((s, i) => (
-          <SignatoryCard key={s.id} s={s} first={i === 0} last={i === ordered.length - 1} onMove={(d) => move(i, d)} onChanged={reload} setMsg={setMsg} />
+          <SignatoryCard key={s.id} s={s} events={events} first={i === 0} last={i === ordered.length - 1} onMove={(d) => move(i, d)} onChanged={reload} setMsg={setMsg} />
         ))}
         <div className="sig-card sig-new">
           <div className="sig-preview">{n.signature ? <img src={n.signature} alt="New signature" /> : <span className="muted small">Signature preview</span>}</div>
           <label>Name<input value={n.name} onChange={(e) => setN({ ...n, name: e.target.value })} placeholder="e.g. Dr. A. Kumar" /></label>
           <label>Designation<input value={n.designation} onChange={(e) => setN({ ...n, designation: e.target.value })} placeholder="e.g. Principal" /></label>
+          <RoundPicker events={events} value={n.event_ids} onChange={(ids) => setN({ ...n, event_ids: ids })} idPrefix="signew" />
           <div className="sig-actions">
             <label className="btn btn-small file-btn">Upload signature<input type="file" accept="image/png,image/jpeg,image/webp" onChange={upload} /></label>
             <button className="btn btn-small btn-primary" disabled={!n.name.trim()} onClick={add}>Add signatory</button>
@@ -149,6 +178,7 @@ function RoundRow({ e, scored, certs, ctx, act, setMsg }) {
   const teams = [...new Map(mine.map((c) => [c.team_id, c])).values()]
     .sort((a, b) => String(a.team_code).localeCompare(String(b.team_code), undefined, { numeric: true }))
   const parts = mine.filter((c) => c.kind === 'participation')
+  const signers = roundSignatories(ctx.signatories, e.id)
   // Issued before the current rules (winners outside the final, or winners without a participation certificate).
   const stale = (e.winners_count === 0 && winners.length > 0)
     || winners.some((w) => !parts.some((p) => p.team_id === w.team_id && p.member_index === w.member_index))
@@ -177,6 +207,10 @@ function RoundRow({ e, scored, certs, ctx, act, setMsg }) {
     <tr>
       <td><Link to={`/admin/rounds/${e.id}`}><b>{e.name}</b></Link><small className="muted block">{roundType(e)}</small></td>
       <td className="nowrap">{e.event_date ? longDate(e.event_date) : <Link to={`/admin/rounds/${e.id}`} className="field-error">Set date</Link>}</td>
+      <td className="sig-who">{signers.length
+        ? <>{signers.slice(0, MAX_SIGNATURES).map((sg) => <span key={sg.id} className="block" title={sg.designation}>{sg.name}</span>)}
+            {signers.length > MAX_SIGNATURES && <small className="field-error block">Only {MAX_SIGNATURES} fit: {signers.slice(MAX_SIGNATURES).map((x) => x.name).join(', ')} left off. Untick or reorder below.</small>}</>
+        : <small className="field-error">No signatures</small>}</td>
       <td className="r">{scored}</td>
       <td>{e.winners_count > 0 ? <span className="tag tag-place podium podium-1">Top {e.winners_count} teams</span> : <span className="muted small">None</span>}</td>
       <td>{mine.length
@@ -245,7 +279,7 @@ export default function Certificates() {
         <p className="muted small">If marks or team details change later, click <b>Re-issue</b>. Each member keeps their certificate ID, so certificates already shared still verify.</p>
         <div className="scroll">
           <table className="table cert-table">
-            <thead><tr><th>Round</th><th>Date</th><th className="r">Teams evaluated</th><th>Winner certificates</th><th>Issued</th><th>Teams</th><th /></tr></thead>
+            <thead><tr><th>Round</th><th>Date</th><th>Signed by</th><th className="r">Teams evaluated</th><th>Winner certificates</th><th>Issued</th><th>Teams</th><th /></tr></thead>
             <tbody>
               {events.map((e) => (
                 <RoundRow key={e.id} e={e} certs={certs} ctx={ctx} act={act} setMsg={setMsg}
@@ -257,7 +291,7 @@ export default function Certificates() {
       </section>
 
       <Logos branding={branding} reload={reload} setMsg={setMsg} />
-      <Signatories sigs={sigs} reload={reload} setMsg={setMsg} />
+      <Signatories sigs={sigs} events={events} reload={reload} setMsg={setMsg} />
     </>
   )
 }
