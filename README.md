@@ -29,6 +29,10 @@ sdg-hackathon/
 > - `supabase/migration_006_department_final.sql`: the department-level final round (top 5 of each semester)
 > - `supabase/migration_007_problem_statements.sql`: the department final ranks all teams instead of shortlisting, and problem statements chosen by teams
 > - `supabase/migration_008_tie_ranking.sql`: tied totals are broken by the tie-break criterion reliably (calculation-only change)
+> - `supabase/migration_009_certificates.sql`: digital certificates, signatories and public certificate verification
+> - `supabase/migration_010_certificate_logos_winners.sql`: certificate logos; participation for every evaluated member; winner certificates only for the final's top 3
+> - `supabase/migration_011_more_logos_address.sql`: six certificate logos; institution address under the name
+> - `supabase/migration_012_feedback.sql`: student feedback on the event (editable questions, per-round collection, optional requirement before certificates)
 
 1. Sign up at supabase.com and click **New project**. Pick a region close to you (for example Mumbai), set a database password, and wait for it to finish.
 2. Open **SQL Editor ▸ New query**, paste in the whole of `supabase/schema.sql`, and click **Run**. You should see "Success". This creates:
@@ -114,6 +118,21 @@ npm run dev                     # opens on http://localhost:5173
 8. **Dashboard** shows results live. Choose **All rounds together** or a single round. There are two downloads:
    - **Download formatted workbook**: the department's full evaluation workbook, filled with every team, evaluator, rubric mark and SDG rating from the app. It keeps all the sheets, formatting, formulas, attainment tables and charts, so it's the version to put in accreditation files. Excel, LibreOffice or Google Sheets calculate the results when the file opens.
    - **Download data export**: plain tables of every result and raw mark, handy for your own analysis.
+
+## Certificates
+
+Admins open **Certificates** in the top menu.
+
+1. **Logos.** Upload a logo for the top-left and/or top-right corner, for example the institution's and the hackathon's. A PNG with a transparent background looks best. A corner without a logo stays blank.
+2. **Signatories.** Add each signatory's name and designation, and upload a photo or scan of their signature on white paper. The white background is removed automatically. Up to three ticked signatories print on every certificate, left to right in the order shown.
+3. **Per round:** set the round's date on its round page, since it's printed on the certificates. Click **Issue** once the round is fully scored.
+   - Every member of every evaluated team gets a **Certificate of Participation** for that round.
+   - In the **department-level final**, the members of the **top 3 teams** also get a **Certificate of Achievement** with their place (1st, 2nd, 3rd). No other round issues winner certificates.
+   - Each certificate shows the member's name and USN, team, problem statement and SDGs, the hackathon and round, department, institution and date, the logos and the signatures.
+4. **Check, then release.** Use **Download all**, **Winners only** or **One team** to get a PDF, one A4 page per certificate. Click **Release to teams** and each team account can download its members' certificates from the team portal.
+5. **Verification.** Every certificate carries a unique certificate ID. Entering it at `https://your-site/#/verify` shows a public page confirming the certificate is genuine. Anyone can use it, without signing in.
+
+Member names come from the team's registration. For teams you added yourself, type members as `Name (USN), Name (USN)`; the USN can also come first. **Issue** lists any evaluated team whose member names it couldn't read. If marks or team details change, click **Re-issue**: members keep their certificate IDs, so certificates already shared still verify.
 
 ## 4. How the numbers are calculated
 
