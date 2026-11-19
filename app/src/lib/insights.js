@@ -181,11 +181,17 @@ export function buildFindings(d) {
   const goals = d.sdgs || []
   const covered = goals.filter((g) => g.primary + g.secondary > 0)
   const missing = goals.filter((g) => g.primary + g.secondary === 0)
+  // Goals that only teams marked absent chose (older saved reports have no "presented" count).
+  const absentOnly = covered.filter((g) => g.presented === 0)
   const teamsPresent = d.attendance?.present ?? 0
-  if (covered.length && missing.length) {
-    add(teamsPresent >= 17 ? 'Medium' : 'Low', 'SDG coverage', `Broaden SDG coverage (${covered.length} of 17 goals addressed)`,
-      `Add problem statements for the goals no team chose, for example by inviting departments, NGOs or local bodies working on them to contribute challenges.`,
-      [`No team chose ${missing.map((g) => `SDG ${g.id} (${g.name})`).join(', ')}.`])
+  if (covered.length && (missing.length || absentOnly.length)) {
+    const ev = []
+    if (missing.length) ev.push(`No team chose ${missing.map((g) => `SDG ${g.id} (${g.name})`).join(', ')}.`)
+    if (absentOnly.length) ev.push(`${absentOnly.map((g) => `SDG ${g.id} (${g.name})`).join(', ')} ${absentOnly.length === 1 ? 'was' : 'were'} chosen only by ${absentOnly.length === 1 ? 'a team' : 'teams'} that did not present, so no solution for ${absentOnly.length === 1 ? 'it' : 'them'} was evaluated.`)
+    add(teamsPresent >= 17 ? 'Medium' : 'Low', 'SDG coverage', missing.length
+      ? `Broaden SDG coverage (${covered.length} of 17 goals addressed${absentOnly.length ? `, ${covered.length - absentOnly.length} by teams that presented` : ''})`
+      : `Get an evaluated solution for every SDG (${covered.length - absentOnly.length} of 17 so far)`,
+      `Add problem statements for the goals ${missing.length ? 'no team chose' : 'without an evaluated solution'}, for example by inviting departments, NGOs or local bodies working on them to contribute challenges.`, ev)
   }
   const primaryTotal = goals.reduce((a, g) => a + g.primary, 0)
   const top = [...goals].sort((a, b) => b.primary - a.primary)[0]
@@ -255,13 +261,13 @@ export function buildFindings(d) {
       teams: att.registered ?? 0, present: att.present ?? 0, absent: att.absent ?? 0,
       responses: fb.responses, members: fb.members,
       overall: overall ? overall.avg : null,
-      sdgs_covered: covered.length,
+      sdgs_covered: covered.length, sdgs_presented: covered.length - absentOnly.length,
       outcomes_l3: at3.length, outcomes: outs.length,
     },
     recommendations: recs,
     strengths,
     themes: themed,
-    sdg: { covered, missing, weak, target },
+    sdg: { covered, missing, absentOnly, weak, target },
     outcomes: outs,
     criteria: crit,
     notes,
@@ -274,7 +280,7 @@ export function factsText(f, settings = {}) {
   L.push(`Event: ${settings.title || 'Hackathon'} — ${settings.department ? `Department of ${settings.department}, ` : ''}${settings.institution || ''}${settings.academic_year ? ` (${settings.academic_year})` : ''}.`)
   L.push(`Scope of this report: ${f.scope}.`)
   const x = f.figures
-  L.push(`Teams: ${x.teams} registered, ${x.present} presented, ${x.absent} absent. Feedback: ${x.responses} responses from ${x.members} participants.${x.overall != null ? ` Overall rating ${n1(x.overall)}/5.` : ''} SDGs addressed: ${x.sdgs_covered} of 17. Outcomes at level 3: ${x.outcomes_l3} of ${x.outcomes}.`)
+  L.push(`Teams: ${x.teams} registered, ${x.present} presented, ${x.absent} absent. Feedback: ${x.responses} responses from ${x.members} participants.${x.overall != null ? ` Overall rating ${n1(x.overall)}/5.` : ''} SDGs addressed: ${x.sdgs_covered} of 17${x.sdgs_presented != null && x.sdgs_presented !== x.sdgs_covered ? ` (${x.sdgs_presented} by teams that presented)` : ''}. Outcomes at level 3: ${x.outcomes_l3} of ${x.outcomes}.`)
   if (f.strengths.length) {
     L.push('\nWhat went well:')
     f.strengths.forEach((st) => L.push(`- ${st.title}. ${st.evidence.join(' ')}`))

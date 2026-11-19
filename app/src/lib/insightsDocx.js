@@ -42,7 +42,7 @@ export async function downloadInsightsDocx({ findings: f, narrative, settings = 
     new Paragraph({ children: [new TextRun({ text: `Review and recommendations for the next hackathon — ${f.scope}`, bold: true, size: 26 })] }),
     new Paragraph({ children: [new TextRun({ text: `${settings.department ? `Department of ${settings.department}, ` : ''}${settings.institution || ''}${settings.academic_year ? `, ${settings.academic_year}` : ''}. Prepared ${when}.`, color: '5E6F75' })], spacing: { after: 240 } }),
     table(['Teams (presented / registered)', 'Feedback responses', 'Overall rating', 'SDGs addressed', 'Outcomes at level 3'],
-      [[`${x.present} / ${x.teams}`, `${x.responses} of ${x.members}`, x.overall == null ? '—' : `${n1(x.overall)} / 5`, `${x.sdgs_covered} of 17`, `${x.outcomes_l3} of ${x.outcomes}`]]),
+      [[`${x.present} / ${x.teams}`, `${x.responses} of ${x.members}`, x.overall == null ? '—' : `${n1(x.overall)} / 5`, `${x.sdgs_covered} of 17${x.sdgs_presented != null && x.sdgs_presented !== x.sdgs_covered ? ` (${x.sdgs_presented} presented)` : ''}`, `${x.outcomes_l3} of ${x.outcomes}`]]),
   ]
   if (narrative?.trim()) {
     children.push(new Paragraph({ text: 'Report', heading: HeadingLevel.HEADING_1, spacing: { before: 300 } }))
@@ -65,6 +65,7 @@ export async function downloadInsightsDocx({ findings: f, narrative, settings = 
   children.push(new Paragraph({ text: 'SDG coverage', heading: HeadingLevel.HEADING_2, spacing: { before: 240 } }))
   children.push(new Paragraph(`Addressed (${f.sdg.covered.length}): ${f.sdg.covered.map((g) => `SDG ${g.id}`).join(', ') || 'none'}.`))
   if (f.sdg.missing.length) children.push(new Paragraph(`Not chosen by any team (${f.sdg.missing.length}): ${f.sdg.missing.map((g) => `SDG ${g.id} ${g.name}`).join('; ')}.`))
+  if (f.sdg.absentOnly?.length) children.push(new Paragraph(`Chosen only by teams that did not present (${f.sdg.absentOnly.length}): ${f.sdg.absentOnly.map((g) => `SDG ${g.id} ${g.name}`).join('; ')}.`))
   if (f.outcomes.length) {
     children.push(new Paragraph({ text: 'PO/PSO attainment', heading: HeadingLevel.HEADING_2, spacing: { before: 240 } }))
     children.push(table(['Outcome', 'Teams', 'Average', '% at target', 'Level'],
