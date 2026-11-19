@@ -170,7 +170,7 @@ function Logos({ branding, reload, setMsg }) {
   )
 }
 
-const GAP_TEXT = { missing: 'no certificate yet', changed: 'name or USN changed', removed: 'no longer on the team' }
+const GAP_TEXT = { missing: 'no certificate yet', changed: 'name or USN changed', removed: 'no longer on the team', absent: 'team marked absent, certificate will be withdrawn', not_evaluated: 'team no longer has marks, certificate will be withdrawn' }
 
 // Members whose certificates don't match the team as it is now.
 function OutOfDate({ gaps }) {

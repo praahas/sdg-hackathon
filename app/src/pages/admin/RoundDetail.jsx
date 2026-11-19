@@ -373,8 +373,15 @@ export default function RoundDetail() {
                 {teams.map((t) => {
                   const r = resultOf(t.id)
                   return (
-                    <tr key={t.id}>
-                      <td><b>{t.team_code}</b> {t.name}</td>
+                    <tr key={t.id} className={t.absent ? 'row-absent' : ''}>
+                      <td><b>{t.team_code}</b> {t.name}
+                        <label className="check absent-check" title="A team that didn't present: its marks are ignored, it isn't ranked and gets no certificate">
+                          <input type="checkbox" checked={!!t.absent} onChange={() => act(
+                            () => q(supabase.from('teams').update({ absent: !t.absent }).eq('id', t.id)),
+                            t.absent
+                              ? `${t.team_code} ${t.name} is no longer marked absent; any marks it was given count again.`
+                              : `${t.team_code} ${t.name} marked absent: it is unranked and gets no certificate. If certificates for this round were already issued, click Re-issue on the Certificates page to withdraw its certificates.`)} />
+                          <span>Absent</span></label></td>
                       {evaluators.map((p) => {
                         const n = scores.filter((s) => s.team_id === t.id && s.evaluator_id === p.id).length
                         const need = nCrit + claimedSdgs(t).length
